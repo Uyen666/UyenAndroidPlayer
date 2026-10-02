@@ -74,14 +74,6 @@ class MainActivity : ComponentActivity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         // 作為預設 Launcher，攔截 Back 鍵以關閉懸浮面板或回到主畫面
-        if (homeViewModel.isFullScreenControllerMode.value) {
-            homeViewModel.setFullScreenControllerMode(false)
-        } else if (homeViewModel.isLibraryOpen.value) {
-            homeViewModel.setLibraryOpen(false)
-        } else if (homeViewModel.isSettingsOpen.value) {
-            homeViewModel.setSettingsOpen(false)
-        } else {
-            // 已在最底層，不退出
-        }
+        homeViewModel.handleBack()
     }
 }

@@ -64,6 +64,8 @@ fun QuickSettingsDrawer(
     isGamepadOverlayActive: Boolean,
     onToggleGamepadOverlay: (Boolean) -> Unit,
     onOpenControllerMode: () -> Unit,
+    onOpenTaskSwitcher: () -> Unit,
+    onCleanRam: () -> Unit,
     onClose: () -> Unit
 ) {
     AnimatedVisibility(
@@ -218,7 +220,48 @@ fun QuickSettingsDrawer(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 掌機多工管理與一鍵清理按鈕
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                onClose()
+                                onOpenTaskSwitcher()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SurfaceCard,
+                                contentColor = SteamDeckAccent
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .border(1.dp, SteamDeckAccent.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        ) {
+                            Text(text = "📑 多工管理", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = onCleanRam,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AccentGreen.copy(alpha = 0.2f),
+                                contentColor = AccentGreen
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .border(1.dp, AccentGreen.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        ) {
+                            Text(text = "⚡ 釋放記憶體", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // 進入 PC 手柄模式按鈕
                     Button(

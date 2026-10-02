@@ -1,28 +1,46 @@
 package com.uyen.launcher.presentation.home
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.uyen.launcher.presentation.controller.TouchGamepadOverlay
+import com.uyen.launcher.presentation.home.components.ConsoleDockBar
 import com.uyen.launcher.presentation.home.components.GameCarousel
+import com.uyen.launcher.presentation.home.components.HandheldTaskSwitcherDialog
 import com.uyen.launcher.presentation.home.components.HeroBanner
 import com.uyen.launcher.presentation.home.components.QuickSettingsDrawer
 import com.uyen.launcher.presentation.home.components.SteamLibraryDialog
 import com.uyen.launcher.presentation.home.components.TopNavigationBar
+import com.uyen.launcher.presentation.theme.AccentGreen
 import com.uyen.launcher.presentation.theme.BackgroundDark
+import com.uyen.launcher.presentation.theme.GlassBackground
 import com.uyen.launcher.presentation.theme.Ps5Blue
 
 @Composable
@@ -37,8 +55,10 @@ fun HomeScreen(
 
     val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
     val isLibraryOpen by viewModel.isLibraryOpen.collectAsState()
+    val isTaskSwitcherOpen by viewModel.isTaskSwitcherOpen.collectAsState()
     val isGamepadOverlayActive by viewModel.isGamepadOverlayActive.collectAsState()
     val isFullScreenControllerMode by viewModel.isFullScreenControllerMode.collectAsState()
+    val boostMessage by viewModel.boostMessage.collectAsState()
 
     val currentGame = games.getOrNull(selectedIndex)
 
@@ -98,7 +118,7 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // 底部 90Hz 水平輪播卡片列
             if (games.isNotEmpty()) {
@@ -110,7 +130,45 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        // 掌機專屬底部控制欄 (替代系統 Home / Back / 多工鍵 / 一鍵清理 RAM)
+        ConsoleDockBar(
+            onBack = { viewModel.handleBack() },
+            onHome = { viewModel.handleHome() },
+            onTasks = { viewModel.setTaskSwitcherOpen(true) },
+            onCleanRam = { viewModel.cleanMemory() },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 36.dp, bottom = 12.dp)
+        )
+
+        // 電競加速 / 系統通知浮動膠囊 (Toast Banner)
+        AnimatedVisibility(
+            visible = boostMessage != null,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 70.dp)
+        ) {
+            boostMessage?.let { msg ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(GlassBackground)
+                        .border(1.5.dp, AccentGreen, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = msg,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
         }
 
         // 觸控虛擬手柄懸浮層 (無實體手柄時使用)
@@ -120,6 +178,19 @@ fun HomeScreen(
                 onClose = { viewModel.setGamepadOverlayActive(false) }
             )
         }
+
+        // 掌機多工任務管理器彈窗
+        HandheldTaskSwitcherDialog(
+            visible = isTaskSwitcherOpen,
+            recentGames = games,
+            onSwitchToGame = { viewModel.launchGame(it) },
+            onKillGame = { viewModel.killGame(it) },
+            onCleanAll = {
+                viewModel.cleanMemory()
+                viewModel.setTaskSwitcherOpen(false)
+            },
+            onClose = { viewModel.setTaskSwitcherOpen(false) }
+        )
 
         // Steam OS 應用庫全螢幕彈窗
         SteamLibraryDialog(
@@ -136,6 +207,8 @@ fun HomeScreen(
             isGamepadOverlayActive = isGamepadOverlayActive,
             onToggleGamepadOverlay = { viewModel.setGamepadOverlayActive(it) },
             onOpenControllerMode = { viewModel.setFullScreenControllerMode(true) },
+            onOpenTaskSwitcher = { viewModel.setTaskSwitcherOpen(true) },
+            onCleanRam = { viewModel.cleanMemory() },
             onClose = { viewModel.setSettingsOpen(false) }
         )
 
