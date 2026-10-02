@@ -1,5 +1,6 @@
 package com.uyen.launcher.presentation.home
 
+import android.app.Activity
 import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
@@ -7,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.uyen.launcher.core.hardware.MemoryCleaner
 import com.uyen.launcher.core.hardware.PerformanceMonitor
+import com.uyen.launcher.core.hardware.SystemControlManager
 import com.uyen.launcher.core.util.SoundManager
 import com.uyen.launcher.data.model.GameItem
 import com.uyen.launcher.data.model.PlayerProfile
@@ -23,7 +25,7 @@ import kotlinx.coroutines.launch
 
 /**
  * 主畫面核心 ViewModel
- * 統一管理 PS5 輪播狀態、Steam OS 遊戲庫、效能 HUD、真實多工任務與電競加速
+ * 統一管理 PS5 輪播狀態、Steam OS 遊戲庫、效能 HUD、真實多工任務、電競加速與硬體控制台
  */
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -31,6 +33,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val performanceMonitor = PerformanceMonitor(application)
     private val soundManager = SoundManager(application)
     private val memoryCleaner = MemoryCleaner(application)
+    private val systemControlManager = SystemControlManager(application)
+    private val prefs = application.getSharedPreferences("uyen_launcher_ui_prefs", Context.MODE_PRIVATE)
 
     val games: StateFlow<List<GameItem>> = gameRepository.games
 
@@ -74,6 +78,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _assistantDialogItem = MutableStateFlow<GameItem?>(null)
     val assistantDialogItem: StateFlow<GameItem?> = _assistantDialogItem.asStateFlow()
 
+    // 是否常態顯示左上角效能 HUD (FPS/溫度)
+    private val _showPerformanceHud = MutableStateFlow(prefs.getBoolean("show_hud", true))
+    val showPerformanceHud: StateFlow<Boolean> = _showPerformanceHud.asStateFlow()
+
+    val mediaVolume: StateFlow<Float> = systemControlManager.mediaVolume
+    val screenBrightness: StateFlow<Float> = systemControlManager.screenBrightness
+    val isFocusDndMode: StateFlow<Boolean> = systemControlManager.isFocusDndMode
+
     private val _boostMessage = MutableStateFlow<String?>(null)
     val boostMessage: StateFlow<String?> = _boostMessage.asStateFlow()
 
@@ -102,6 +114,35 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setAssistantDialogItem(item: GameItem?) {
         _assistantDialogItem.value = item
+    }
+
+    fun setPerformanceHudVisible(visible: Boolean) {
+        _showPerformanceHud.value = visible
+        prefs.edit().putBoolean("show_hud", visible).apply()
+    }
+
+    fun setVolume(volume: Float) {
+        systemControlManager.setMediaVolume(volume)
+    }
+
+    fun setBrightness(activity: Activity?, brightness: Float) {
+        systemControlManager.setBrightness(activity, brightness)
+    }
+
+    fun setFocusDndMode(enabled: Boolean) {
+        systemControlManager.setFocusDndMode(enabled)
+    }
+
+    fun openWifiSettings() {
+        systemControlManager.openWifiSettings()
+    }
+
+    fun openBluetoothSettings() {
+        systemControlManager.openBluetoothSettings()
+    }
+
+    fun openNotificationSettings() {
+        systemControlManager.openNotificationSettings()
     }
 
     fun createGameDirectories() {

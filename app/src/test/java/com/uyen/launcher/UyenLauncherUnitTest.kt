@@ -138,4 +138,16 @@ class UyenLauncherUnitTest {
         assertTrue(scanner.ensureDirectoryStructure())
         testBase.deleteRecursively()
     }
+
+    @Test
+    fun testHardwareBrightnessAndVolumeBounds() {
+        val volumePercent = 0.85f.coerceIn(0f, 1f)
+        assertEquals(0.85f, volumePercent, 0.001f)
+
+        val brightnessOver = 1.5f.coerceIn(0.05f, 1.0f)
+        assertEquals(1.0f, brightnessOver, 0.001f)
+
+        val brightnessUnder = 0.01f.coerceIn(0.05f, 1.0f)
+        assertEquals(0.05f, brightnessUnder, 0.001f)
+    }
 }

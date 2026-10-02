@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -28,13 +31,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.uyen.launcher.data.model.GameItem
 import com.uyen.launcher.presentation.controller.TouchGamepadOverlay
-import com.uyen.launcher.presentation.home.components.ConsoleDockBar
+import com.uyen.launcher.presentation.home.components.AutoHideEdgeHandle
 import com.uyen.launcher.presentation.home.components.EmulatorAssistantDialog
 import com.uyen.launcher.presentation.home.components.GameCarousel
 import com.uyen.launcher.presentation.home.components.HandheldTaskSwitcherDialog
@@ -67,6 +71,11 @@ fun HomeScreen(
     val isKioskModeEnabled by viewModel.isKioskModeEnabled.collectAsState()
     val isRetroArcadeOpen by viewModel.isRetroArcadeOpen.collectAsState()
     val assistantDialogItem by viewModel.assistantDialogItem.collectAsState()
+
+    val showPerformanceHud by viewModel.showPerformanceHud.collectAsState()
+    val mediaVolume by viewModel.mediaVolume.collectAsState()
+    val screenBrightness by viewModel.screenBrightness.collectAsState()
+    val isFocusDndMode by viewModel.isFocusDndMode.collectAsState()
 
     val runningTasks by viewModel.runningTasks.collectAsState()
     val boostMessage by viewModel.boostMessage.collectAsState()
@@ -112,6 +121,7 @@ fun HomeScreen(
             TopNavigationBar(
                 profile = profile,
                 stats = stats,
+                showPerformanceHud = showPerformanceHud,
                 onOpenSettings = { viewModel.setSettingsOpen(true) },
                 onOpenLibrary = { viewModel.setLibraryOpen(true) },
                 onToggleControllerMode = {
@@ -144,15 +154,31 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(10.dp))
         }
 
-        // 掌機專屬底部控制欄 (替代系統 Home / Back / 多工鍵 / 一鍵清理 RAM)
-        ConsoleDockBar(
+        // 掌機極簡自動隱藏邊緣側邊小條 (Auto-hide Drawer Handle)
+        // 螢幕右側邊緣僅留 3.5dp 微光線條，點擊/向內撥動滑出微型藥丸膠囊，3秒無操作自動隱藏
+        AutoHideEdgeHandle(
             onBack = { viewModel.handleBack() },
             onHome = { viewModel.handleHome() },
             onTasks = { viewModel.setTaskSwitcherOpen(true) },
-            onCleanRam = { viewModel.cleanMemory() },
+            onOpenSettings = { viewModel.setSettingsOpen(true) },
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 36.dp, bottom = 12.dp)
+                .align(Alignment.CenterEnd)
+                .padding(end = 1.dp)
+        )
+
+        // 螢幕最左側邊緣手勢偵測：向右滑動平滑展開控制台
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .width(28.dp)
+                .fillMaxHeight()
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures { _, dragAmount ->
+                        if (dragAmount > 8f) {
+                            viewModel.setSettingsOpen(true)
+                        }
+                    }
+                }
         )
 
         // 電競加速 / 系統通知浮動膠囊 (Toast Banner)
@@ -219,12 +245,20 @@ fun HomeScreen(
             onClose = { viewModel.setLibraryOpen(false) }
         )
 
-        // Quick Settings 效能監控側邊抽屜
+        // 掌機系統控制台 (Quick Settings Drawer)
         QuickSettingsDrawer(
             visible = isSettingsOpen,
             stats = stats,
             isGamepadOverlayActive = isGamepadOverlayActive,
             isKioskModeActive = isKioskModeEnabled,
+            showPerformanceHud = showPerformanceHud,
+            isFocusDndMode = isFocusDndMode,
+            mediaVolume = mediaVolume,
+            screenBrightness = screenBrightness,
+            onVolumeChange = { viewModel.setVolume(it) },
+            onBrightnessChange = { viewModel.setBrightness(context as? Activity, it) },
+            onTogglePerformanceHud = { viewModel.setPerformanceHudVisible(it) },
+            onToggleFocusDndMode = { viewModel.setFocusDndMode(it) },
             onToggleGamepadOverlay = { viewModel.setGamepadOverlayActive(it) },
             onToggleKioskMode = { enabled ->
                 val activity = context as? Activity
@@ -240,6 +274,9 @@ fun HomeScreen(
                     } catch (_: Exception) {}
                 }
             },
+            onOpenWifiSettings = { viewModel.openWifiSettings() },
+            onOpenBluetoothSettings = { viewModel.openBluetoothSettings() },
+            onOpenNotificationSettings = { viewModel.openNotificationSettings() },
             onOpenControllerMode = { viewModel.setFullScreenControllerMode(true) },
             onOpenTaskSwitcher = { viewModel.setTaskSwitcherOpen(true) },
             onCleanRam = { viewModel.cleanMemory() },

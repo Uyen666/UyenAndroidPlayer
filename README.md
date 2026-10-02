@@ -45,9 +45,16 @@
   - **檔案辨識**：自動掃描並載入 `.xp3`、`.rpa` (Galgame) 以及 `.nes`、`.gba`、`.sfc` (復古 ROM)。
   - **核心引導**：當未安裝 Tyranor、Kirikiroid2、RetroArch 或 Moonlight 時，彈出「掌機核心指引彈窗」，提供一鍵建立目錄與內建街機體驗。
 
-- **🚢 專屬掌機 ConsoleDockBar & 純淨沉浸防護**
-  - 右下角懸浮常駐導航：提供直覺的 `[返回]`、`[主頁]`、`[多工]`、`[加速]` 操作。
+- **🚢 自動隱藏邊緣側邊小條 (AutoHideEdgeHandle)**
+  - 右側邊緣常態保留 3.5dp 極細微光線條 (Alpha = 0.25f)，看海報時 100% 純淨不擋畫面。
+  - 點擊或向內撥動以彈簧動畫滑出微型藥丸膠囊（`[返回]`、`[主頁]`、`[多工]`、`[設定]`），3 秒無操作自動平滑縮回淡出。
   - 徹底封鎖系統下拉通知列與 Android 邊緣返回手勢，支援 Kiosk 模式與真實 `RunningTask` 進程管理。
+
+- **🎛️ 掌機系統控制台 (SystemControlManager & QuickSettingsDrawer)**
+  - 左側邊緣向右滑動手勢平滑展開控制台。
+  - 整合媒體音量滑桿、視窗亮度滑桿、Wi-Fi/藍牙快速跳轉卡片。
+  - **掌機專注模式 (Game Focus DND)**：自動靜音後台通知與鈴聲，解決突然發出提示聲卻看不到的困擾。
+  - **效能 HUD 顯示開關**：可在設定中開啟/關閉左上角 FPS/溫度顯示，關閉時享受極致純淨海報視覺。
 
 ---
 
@@ -59,16 +66,16 @@
 app/src/main/java/com/uyen/launcher/
 ├── core/                  # 底層核心模組 (網絡、硬體感測、協程調度)
 │   ├── controller/        # UyenController 虛擬手柄與 UDP 廣播通訊
-│   ├── hardware/          # 效能監控 (FPS, CPU, Battery, Thermal) & MemoryCleaner
+│   ├── hardware/          # 效能監控 (PerformanceMonitor)、MemoryCleaner、SystemControlManager
 │   ├── scanner/           # LocalRomScanner (自動掃描 SDCard/Games)
-│   └── util/              # SoundManager (8-bit 音效合成)、SystemBarUtil (沉浸防護)
+│   └── util/              # SoundManager (8-bit 音效合成)、SystemBarUtil (沉浸防護 & 水滴屏適配)
 ├── data/                  # 資料層 (Repository, 資料模型)
 │   ├── model/             # 遊戲實體、玩家檔案、RunningTask 模型
 │   └── repository/        # GameRepository (動態聚合安裝套件與 ROM 項目)
 └── presentation/          # 表現層 (Jetpack Compose 現代化 UI)
     ├── controller/        # TouchGamepadOverlay (虛擬按鍵與類比搖桿)
     ├── home/              # PS5 主介面 (Hero Banner + 90Hz 卡片輪播)
-    │   └── components/    # ConsoleDockBar, TaskSwitcher, Library, QuickSettings, EmulatorAssistant
+    │   └── components/    # AutoHideEdgeHandle, TaskSwitcher, Library, QuickSettings, EmulatorAssistant
     ├── minigame/          # RetroArcadeScreen (內建 8-bit 太空突擊街機引擎)
     ├── splash/            # Steam OS 開機動畫與跳過邏輯
     └── theme/             # 主題配色、玻璃擬物化質感、Typography

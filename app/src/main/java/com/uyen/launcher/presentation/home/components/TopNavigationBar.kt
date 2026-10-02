@@ -55,6 +55,7 @@ import java.util.Locale
 fun TopNavigationBar(
     profile: PlayerProfile,
     stats: SystemStats,
+    showPerformanceHud: Boolean = true,
     onOpenSettings: () -> Unit,
     onOpenLibrary: () -> Unit,
     onToggleControllerMode: () -> Unit,
@@ -78,35 +79,54 @@ fun TopNavigationBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 左上角：Quick Settings & 效能監控 HUD 觸發鈕
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(GlassBackground)
-                .border(1.dp, GlassBorder, RoundedCornerShape(20.dp))
-                .clickable { onOpenSettings() }
-                .padding(horizontal = 14.dp, vertical = 8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Speed,
-                contentDescription = "效能監控",
-                tint = SteamDeckAccent,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "${stats.fps} FPS",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = AccentGreen
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "${stats.batteryTempCelsius}°C",
-                fontSize = 12.sp,
-                color = TextSecondary
-            )
+        // 左上角：Quick Settings & 效能監控 HUD 觸發鈕 (支援開關隱藏)
+        if (showPerformanceHud) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(GlassBackground)
+                    .border(1.dp, GlassBorder, RoundedCornerShape(20.dp))
+                    .clickable { onOpenSettings() }
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Speed,
+                    contentDescription = "效能監控",
+                    tint = SteamDeckAccent,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "${stats.fps} FPS",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AccentGreen
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${stats.batteryTempCelsius}°C",
+                    fontSize = 12.sp,
+                    color = TextSecondary
+                )
+            }
+        } else {
+            // 純淨模式：極微弱灰白小圓圈，點擊依然可打開控制台
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .clickable { onOpenSettings() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Speed,
+                    contentDescription = "系統設定",
+                    tint = TextSecondary.copy(alpha = 0.4f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
 
         // 正上方：玩家身分面板與即時狀態
