@@ -1,0 +1,74 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+build/
+*/build/
+
+# Gradle files
+.gradle/
+buildOutput/
+
+# Local configuration file (contains Android SDK path, personal paths)
+local.properties
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+
+# VS Code
+.vscode/
+
+# Signing files & Keystores (HIGH SECURITY SENSITIVE)
+*.jks
+*.keystore
+*.key
+*.pem
+*.p12
+*.pfx
+signing.properties
+release-keystore.properties
+secrets.properties
+
+# Google Services / Sensitive API Configurations
+google-services.json
+firebase-debug.json
+
+# Native build cache
+.externalNativeBuild/
+.cxx/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# Logs & profiling
+*.log
+captures/
+profile.txt
+
+# Scratch and temporary caches
+scratch/
+tmp/
+*.tmp
+*.bak
