@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.uyen.launcher.core.kiosk.ConsoleLockManager
 import com.uyen.launcher.core.util.SystemBarUtil
 import com.uyen.launcher.presentation.home.HomeScreen
 import com.uyen.launcher.presentation.home.HomeViewModel
@@ -63,6 +64,13 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         SystemBarUtil.hideSystemBars(this)
         homeViewModel.checkDeviceOwnerState()
+        val prefs = getSharedPreferences("uyen_launcher_ui_prefs", MODE_PRIVATE)
+        if (prefs.getBoolean("kiosk_auto_lock", true) &&
+            ConsoleLockManager.isDeviceOwner(this) &&
+            !ConsoleLockManager.isLockTaskActive(this)
+        ) {
+            ConsoleLockManager.enableConsoleLock(this)
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

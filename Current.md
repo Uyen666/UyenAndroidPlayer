@@ -42,14 +42,14 @@
   - 配置 `setSystemGestureExclusionRects` 邊緣手勢排除，抑制滑動時彈出系統返回箭頭與黑色手勢條。
 
 ### Phase 4: 實體主機等級硬體鎖死 (Device Owner, LockTask & Status Bar Disable) - 全部通過 ✅
-- [x] **Device Owner 模式支持 (`UyenDeviceAdminReceiver`)**
-  - 配置 `DeviceAdminReceiver` 與 `device_admin_receiver.xml`，支援 ADB 指令 `dpm set-device-owner`。
-  - Activity 宣告 `android:lockTaskMode="if_whitelisted"`。
-- [x] **掌機硬體鎖定管理器 (`ConsoleLockManager`)**
+- [x] **Device Owner 模式授權成功 (`UyenDeviceAdminReceiver`)**
+  - 小米 Redmi 13C 實機成功綁定：`Success: Device owner set to package com.uyen.launcher/.receiver.UyenDeviceAdminReceiver`
+  - 系統底層驗證確認：`admin=com.uyen.launcher/.receiver.UyenDeviceAdminReceiver,DeviceOwner,Affiliated`
+- [x] **硬體級 LockTask Kiosk 模式生效 (`mLockTaskModeState=LOCKED`)**
   - 動態配置 `setLockTaskPackages` 白名單（包含本啟動器與所有遊戲/模擬器）。
-  - 設定 `LOCK_TASK_FEATURE_NONE`，徹底廢除狀態列下拉手勢、遮蔽返回鍵與多工鍵。
-- [x] **StatusBar 底層防護指令 (`cmd statusbar send-disable-flag`)**
-  - 提供免登入小米帳號即時完全停用狀態列下拉：`statusbar-expansion notification-peek home recents`。
+  - 設定 `LOCK_TASK_FEATURE_NONE`，徹底從 Android framework 拔除狀態列下拉手勢、遮蔽返回鍵與多工鍵。
+- [x] **自動 Console 模式啟動與控制台記憶**
+  - `MainActivity` 於 `onResume` 自動進入極限掌機鎖死，並於控制台提供一鍵切換與開關記憶。
 - [x] **控制台狀態聯動與引導**
   - `QuickSettingsDrawer` 即時感知 Device Owner 狀態，提供一鍵啟用/解除與終端指令指引。
 

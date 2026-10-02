@@ -310,11 +310,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (currentLocked) {
             ConsoleLockManager.disableConsoleLock(activity)
             _isKioskModeEnabled.value = false
+            prefs.edit().putBoolean("kiosk_auto_lock", false).apply()
             _boostMessage.value = "已解除掌機鎖定模式"
         } else {
             val success = ConsoleLockManager.enableConsoleLock(activity)
             _isKioskModeEnabled.value = success
             if (success) {
+                prefs.edit().putBoolean("kiosk_auto_lock", true).apply()
                 _boostMessage.value = if (_isDeviceOwner.value) {
                     "🔒 實體掌機級硬體鎖定已啟動 (狀態列下拉徹底廢除)"
                 } else {
