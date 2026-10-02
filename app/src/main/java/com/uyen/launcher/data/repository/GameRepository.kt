@@ -144,6 +144,25 @@ class GameRepository(private val context: Context) {
         _games.value = currentList
     }
 
+    private val romScanner = com.uyen.launcher.core.scanner.LocalRomScanner()
+
+    fun createGameDirectories(): Boolean {
+        return romScanner.ensureDirectoryStructure()
+    }
+
+    suspend fun scanLocalRomFiles() = withContext(Dispatchers.IO) {
+        val romItems = romScanner.scanLocalGames()
+        if (romItems.isNotEmpty()) {
+            val currentList = _games.value.toMutableList()
+            romItems.forEach { rom ->
+                if (currentList.none { it.id == rom.id }) {
+                    currentList.add(rom)
+                }
+            }
+            _games.value = currentList
+        }
+    }
+
     fun launchGame(item: GameItem): Boolean {
         item.packageName?.let { pkg ->
             val intent = context.packageManager.getLaunchIntentForPackage(pkg)

@@ -46,7 +46,9 @@ class UyenControllerSender {
         this.targetPort = port
         this.isConnected = true
         if (socket == null || socket?.isClosed == true) {
-            socket = DatagramSocket()
+            socket = DatagramSocket().apply {
+                broadcast = true
+            }
         }
     }
 

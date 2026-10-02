@@ -33,13 +33,21 @@
 
 - **🕹️ 觸控虛擬手柄 & UyenController (PC 搖桿模式)**
   - **無手柄輔助**：為復古遊戲與小遊戲提供高度自訂的半透明虛擬按鍵層。
-  - **變身電腦手柄**：支援透過 Wi-Fi (極低延遲 UDP) 或 藍牙 HID 協議，直接將手機化身為電腦的 Xbox 360 / XInput 遊戲手柄。
+  - **變身電腦手柄**：支援透過 Wi-Fi (極低延遲 UDP 8999 埠) 廣播，直接將手機化身為電腦的 Xbox 360 遊戲手柄。
+  - **PC 端伴侶腳本**：內建 `scripts/uyen_controller_receiver.py`，支援 ViGEmBus / vgamepad 虛擬手柄驅動與封包調試。
 
-- **🚀 全面遊戲相容中心**
-  - **Galgame**：支援 Tyranor、Kirikiroid2、Ren'Py 及 WebGL 視覺小說一鍵拉起。
-  - **復古 & 8-bit**：整合 FC/NES、GBA、SFC 等復古核心與精選 8-bit 迷你遊戲庫。
-  - **自製遊戲沙盒**：內建高性能 Canvas/Web 容器與自製 APK 管理通道。
-  - **主機串流**：深度相容 Moonlight (Sunshine) 與 Steam Link。
+- **👾 內建 8-bit 懷舊街機 (Uyen 8-Bit Cyber Strike)**
+  - 純 Kotlin + Jetpack Compose Canvas 打造之 **90Hz 高刷流暢太空突擊遊戲**。
+  - 無需網路、隨開隨玩，具備像素雙雷射、敵機 AI、爆炸粒子、波次遞增、最高分紀錄與復古 8-bit 音效。
+
+- **🚀 全面遊戲相容中心 & 本地 ROM 掃描器 (LocalRomScanner)**
+  - **目錄架構**：自動在手機儲存空間建立標準化路徑 `/sdcard/Games/Galgames/`、`/sdcard/Games/ROMs/`。
+  - **檔案辨識**：自動掃描並載入 `.xp3`、`.rpa` (Galgame) 以及 `.nes`、`.gba`、`.sfc` (復古 ROM)。
+  - **核心引導**：當未安裝 Tyranor、Kirikiroid2、RetroArch 或 Moonlight 時，彈出「掌機核心指引彈窗」，提供一鍵建立目錄與內建街機體驗。
+
+- **🚢 專屬掌機 ConsoleDockBar & 純淨沉浸防護**
+  - 右下角懸浮常駐導航：提供直覺的 `[返回]`、`[主頁]`、`[多工]`、`[加速]` 操作。
+  - 徹底封鎖系統下拉通知列與 Android 邊緣返回手勢，支援 Kiosk 模式與真實 `RunningTask` 進程管理。
 
 ---
 
@@ -49,24 +57,24 @@
 
 ```
 app/src/main/java/com/uyen/launcher/
-├── core/                  # 底層核心模組 (網絡、資料庫、硬體感測、協程調度)
-│   ├── base/              # BaseViewModel, ViewState, ViewEvent
-│   ├── hardware/          # 效能監控 (FPS, CPU, Battery, Thermal)
-│   ├── controller/        # UyenController 虛擬手柄與 UDP/HID 通訊
-│   └── util/              # 音效管理、圖片載入、系統沉浸模式工具
-├── data/                  # 資料層 (Repository, 資料源, 本地資料庫, 遊戲掃描)
-│   ├── model/             # 遊戲實體、玩家檔案、系統設定資料模型
-│   ├── repository/        # GameRepository, SystemRepository
-│   └── scanner/           # 本機 ROM / Galgame / 應用程式自動掃描器
-├── domain/                # 業務邏輯層 (UseCases 領域用例)
-│   └── usecase/           # 遊戲啟動、手柄通訊、效能採集用例
+├── core/                  # 底層核心模組 (網絡、硬體感測、協程調度)
+│   ├── controller/        # UyenController 虛擬手柄與 UDP 廣播通訊
+│   ├── hardware/          # 效能監控 (FPS, CPU, Battery, Thermal) & MemoryCleaner
+│   ├── scanner/           # LocalRomScanner (自動掃描 SDCard/Games)
+│   └── util/              # SoundManager (8-bit 音效合成)、SystemBarUtil (沉浸防護)
+├── data/                  # 資料層 (Repository, 資料模型)
+│   ├── model/             # 遊戲實體、玩家檔案、RunningTask 模型
+│   └── repository/        # GameRepository (動態聚合安裝套件與 ROM 項目)
 └── presentation/          # 表現層 (Jetpack Compose 現代化 UI)
-    ├── theme/             # 主題、色彩規範、排版、90Hz 動畫過渡規格
+    ├── controller/        # TouchGamepadOverlay (虛擬按鍵與類比搖桿)
+    ├── home/              # PS5 主介面 (Hero Banner + 90Hz 卡片輪播)
+    │   └── components/    # ConsoleDockBar, TaskSwitcher, Library, QuickSettings, EmulatorAssistant
+    ├── minigame/          # RetroArcadeScreen (內建 8-bit 太空突擊街機引擎)
     ├── splash/            # Steam OS 開機動畫與跳過邏輯
-    ├── home/              # PS5 主介面 (Hero Banner + 底部輪播卡片)
-    ├── library/           # Steam OS 風格 App Library
-    ├── settings/          # Quick Settings 效能監控側邊抽屜
-    └── controller/        # 虛擬觸控手柄操作介面
+    └── theme/             # 主題配色、玻璃擬物化質感、Typography
+scripts/
+├── requirements.txt       # PC 端依賴 (vgamepad)
+└── uyen_controller_receiver.py # Windows PC 端 UDP 接收與虛擬 Xbox 360 手柄驅動腳本
 ```
 
 ---
@@ -90,16 +98,26 @@ app/src/main/java/com/uyen/launcher/
 - **Android Studio**：Ladybug (2024.2+) 或更高版本
 
 ### 建置與安裝
-```bash
+```powershell
 # 1. 設置環境變數
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 $env:ANDROID_HOME = "C:\Users\林尚楷\AppData\Local\Android\Sdk"
 
-# 2. 編譯 Debug APK
+# 2. 執行單元測試 (Unit Tests: 100% PASS)
+./gradlew test
+
+# 3. 編譯 Debug APK
 ./gradlew assembleDebug
 
-# 3. 安裝至已連線之手機
+# 4. 安裝至已連線之手機
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 🎮 UyenController PC 接收端執行方式
+```bash
+cd scripts
+pip install -r requirements.txt
+python uyen_controller_receiver.py
 ```
 
 ---

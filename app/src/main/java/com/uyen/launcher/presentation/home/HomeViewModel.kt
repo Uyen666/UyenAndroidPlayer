@@ -66,13 +66,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _isKioskModeEnabled = MutableStateFlow(false)
     val isKioskModeEnabled: StateFlow<Boolean> = _isKioskModeEnabled.asStateFlow()
 
+    // 內建 8-bit 太空突擊懷舊街機狀態
+    private val _isRetroArcadeOpen = MutableStateFlow(false)
+    val isRetroArcadeOpen: StateFlow<Boolean> = _isRetroArcadeOpen.asStateFlow()
+
+    // 掌機模擬器與遊戲引擎導航指南彈窗
+    private val _assistantDialogItem = MutableStateFlow<GameItem?>(null)
+    val assistantDialogItem: StateFlow<GameItem?> = _assistantDialogItem.asStateFlow()
+
     private val _boostMessage = MutableStateFlow<String?>(null)
     val boostMessage: StateFlow<String?> = _boostMessage.asStateFlow()
+
+    val soundManagerInstance: SoundManager get() = soundManager
 
     init {
         performanceMonitor.startMonitoring(viewModelScope)
         viewModelScope.launch {
             gameRepository.scanInstalledApps()
+            gameRepository.scanLocalRomFiles()
         }
     }
 
@@ -85,24 +96,64 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setRetroArcadeOpen(open: Boolean) {
+        _isRetroArcadeOpen.value = open
+    }
+
+    fun setAssistantDialogItem(item: GameItem?) {
+        _assistantDialogItem.value = item
+    }
+
+    fun createGameDirectories() {
+        val success = gameRepository.createGameDirectories()
+        _boostMessage.value = if (success) {
+            "已在儲存空間建立 /sdcard/Games 遊戲目錄！"
+        } else {
+            "目錄已存在或建立完成"
+        }
+        viewModelScope.launch {
+            gameRepository.scanLocalRomFiles()
+            kotlinx.coroutines.delay(2500)
+            _boostMessage.value = null
+        }
+    }
+
     fun launchGame(item: GameItem) {
         viewModelScope.launch {
             soundManager.playConfirmSound()
         }
-        if (item.id == "controller_mode") {
-            _isFullScreenControllerMode.value = true
-        } else {
-            val launched = gameRepository.launchGame(item)
-            if (launched && item.packageName != null) {
-                // 將真正啟動的遊戲登記進後台運行程序列表
+        when (item.id) {
+            "controller_mode" -> {
+                _isFullScreenControllerMode.value = true
+            }
+            "retro_8bit", "custom_sandbox" -> {
+                // 啟動內建 8-bit 太空突擊懷舊街機
+                _isRetroArcadeOpen.value = true
                 val newTask = RunningTask(
                     id = item.id,
                     title = item.title,
-                    packageName = item.packageName,
-                    memoryUsageMb = (60..160).random().toLong(),
+                    packageName = "com.uyen.launcher.arcade",
+                    memoryUsageMb = 78,
                     startTimeMillis = System.currentTimeMillis()
                 )
-                _runningTasks.value = listOf(newTask) + _runningTasks.value.filter { it.packageName != item.packageName }
+                _runningTasks.value = listOf(newTask) + _runningTasks.value.filter { it.id != item.id }
+            }
+            else -> {
+                val launched = gameRepository.launchGame(item)
+                if (launched && item.packageName != null) {
+                    // 將真正啟動的遊戲登記進後台運行程序列表
+                    val newTask = RunningTask(
+                        id = item.id,
+                        title = item.title,
+                        packageName = item.packageName,
+                        memoryUsageMb = (60..160).random().toLong(),
+                        startTimeMillis = System.currentTimeMillis()
+                    )
+                    _runningTasks.value = listOf(newTask) + _runningTasks.value.filter { it.packageName != item.packageName }
+                } else {
+                    // 模擬器或核心尚未安裝，彈出指引彈窗
+                    _assistantDialogItem.value = item
+                }
             }
         }
     }
@@ -114,6 +165,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             soundManager.playConfirmSound()
         }
+        _isRetroArcadeOpen.value = false
+        _assistantDialogItem.value = null
         _isSettingsOpen.value = false
         _isLibraryOpen.value = false
         _isTaskSwitcherOpen.value = false
@@ -129,6 +182,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             soundManager.playCardFocusSound()
         }
         when {
+            _isRetroArcadeOpen.value -> _isRetroArcadeOpen.value = false
+            _assistantDialogItem.value != null -> _assistantDialogItem.value = null
             _isFullScreenControllerMode.value -> _isFullScreenControllerMode.value = false
             _isTaskSwitcherOpen.value -> _isTaskSwitcherOpen.value = false
             _isLibraryOpen.value -> _isLibraryOpen.value = false

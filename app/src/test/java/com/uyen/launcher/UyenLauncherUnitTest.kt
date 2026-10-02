@@ -109,4 +109,33 @@ class UyenLauncherUnitTest {
         taskList.removeIf { it.id == "galgame_tyranor" }
         assertTrue(taskList.isEmpty())
     }
+
+    @Test
+    fun testRetroArcadeBulletAndInvader() {
+        val bullet = com.uyen.launcher.presentation.minigame.Bullet(x = 0.5f, y = 0.8f)
+        assertEquals(0.5f, bullet.x, 0.001f)
+        assertEquals(0.8f, bullet.y, 0.001f)
+        assertTrue(bullet.vy < 0) // 子彈向上飛
+
+        val invader = com.uyen.launcher.presentation.minigame.Invader(
+            x = 0.3f,
+            y = 0.1f,
+            vx = 0.01f,
+            vy = 0.02f,
+            hp = 2,
+            type = 1
+        )
+        assertEquals(2, invader.hp)
+        assertEquals(1, invader.type)
+        assertEquals(0.3f, invader.x, 0.001f)
+    }
+
+    @Test
+    fun testLocalRomScannerDirectoryStructure() {
+        val testBase = java.io.File(System.getProperty("java.io.tmpdir"), "uyen_test_dir")
+        val scanner = com.uyen.launcher.core.scanner.LocalRomScanner(baseDir = testBase)
+        assertNotNull(scanner)
+        assertTrue(scanner.ensureDirectoryStructure())
+        testBase.deleteRecursively()
+    }
 }

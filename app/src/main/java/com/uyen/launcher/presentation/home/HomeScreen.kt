@@ -35,12 +35,14 @@ import androidx.compose.ui.unit.sp
 import com.uyen.launcher.data.model.GameItem
 import com.uyen.launcher.presentation.controller.TouchGamepadOverlay
 import com.uyen.launcher.presentation.home.components.ConsoleDockBar
+import com.uyen.launcher.presentation.home.components.EmulatorAssistantDialog
 import com.uyen.launcher.presentation.home.components.GameCarousel
 import com.uyen.launcher.presentation.home.components.HandheldTaskSwitcherDialog
 import com.uyen.launcher.presentation.home.components.HeroBanner
 import com.uyen.launcher.presentation.home.components.QuickSettingsDrawer
 import com.uyen.launcher.presentation.home.components.SteamLibraryDialog
 import com.uyen.launcher.presentation.home.components.TopNavigationBar
+import com.uyen.launcher.presentation.minigame.RetroArcadeScreen
 import com.uyen.launcher.presentation.theme.AccentGreen
 import com.uyen.launcher.presentation.theme.BackgroundDark
 import com.uyen.launcher.presentation.theme.GlassBackground
@@ -63,6 +65,8 @@ fun HomeScreen(
     val isGamepadOverlayActive by viewModel.isGamepadOverlayActive.collectAsState()
     val isFullScreenControllerMode by viewModel.isFullScreenControllerMode.collectAsState()
     val isKioskModeEnabled by viewModel.isKioskModeEnabled.collectAsState()
+    val isRetroArcadeOpen by viewModel.isRetroArcadeOpen.collectAsState()
+    val assistantDialogItem by viewModel.assistantDialogItem.collectAsState()
 
     val runningTasks by viewModel.runningTasks.collectAsState()
     val boostMessage by viewModel.boostMessage.collectAsState()
@@ -247,6 +251,23 @@ fun HomeScreen(
             TouchGamepadOverlay(
                 isFullScreenControllerMode = true,
                 onClose = { viewModel.setFullScreenControllerMode(false) }
+            )
+        }
+
+        // 掌機模擬器與核心導航指引彈窗
+        EmulatorAssistantDialog(
+            visible = assistantDialogItem != null,
+            gameItem = assistantDialogItem,
+            onCreateDirectories = { viewModel.createGameDirectories() },
+            onPlayBuiltinArcade = { viewModel.setRetroArcadeOpen(true) },
+            onClose = { viewModel.setAssistantDialogItem(null) }
+        )
+
+        // 內建 8-bit 太空突擊懷舊街機 (90Hz Smooth Canvas Mini-Game)
+        if (isRetroArcadeOpen) {
+            RetroArcadeScreen(
+                soundManager = viewModel.soundManagerInstance,
+                onExit = { viewModel.setRetroArcadeOpen(false) }
             )
         }
     }

@@ -34,6 +34,30 @@ class SoundManager(private val context: Context) {
         } catch (_: Exception) {}
     }
 
+    suspend fun playLaserSound() = withContext(Dispatchers.Default) {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_DTMF_1, 40)
+        } catch (_: Exception) {}
+    }
+
+    suspend fun playExplosionSound() = withContext(Dispatchers.Default) {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_PROP_PROMPT, 60)
+        } catch (_: Exception) {}
+    }
+
+    suspend fun playGameOverSound() = withContext(Dispatchers.Default) {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 180)
+        } catch (_: Exception) {}
+    }
+
+    suspend fun playPowerUpSound() = withContext(Dispatchers.Default) {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_DTMF_A, 80)
+        } catch (_: Exception) {}
+    }
+
     fun release() {
         toneGenerator?.release()
         toneGenerator = null
