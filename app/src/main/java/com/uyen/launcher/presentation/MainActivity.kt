@@ -30,9 +30,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 沉浸式隱藏狀態欄與虛擬導航列
-        SystemBarUtil.hideSystemBars(this)
-
         setContent {
             UyenTheme {
                 var showBootAnimation by remember { mutableStateOf(true) }
@@ -57,11 +54,21 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // 於 View 結構初始化後安全隱藏系統列
+        SystemBarUtil.hideSystemBars(this)
     }
 
     override fun onResume() {
         super.onResume()
         SystemBarUtil.hideSystemBars(this)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            SystemBarUtil.hideSystemBars(this)
+        }
     }
 
     @Deprecated("Deprecated in Java")

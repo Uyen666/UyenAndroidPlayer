@@ -1,31 +1,26 @@
 package com.uyen.launcher.core.util
 
 import android.app.Activity
-import android.os.Build
-import android.view.View
-import android.view.WindowInsets
-import android.view.WindowInsetsController
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 /**
  * 掌機全螢幕沉浸工具
+ * 使用 AndroidX WindowCompat 安全控制系統列，適配 Android 8 ~ Android 14+
  */
 object SystemBarUtil {
     fun hideSystemBars(activity: Activity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val controller = activity.window.insetsController ?: return
-            controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+        try {
+            val window = activity.window ?: return
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            val decorView = window.peekDecorView() ?: window.decorView ?: return
+            val controller = WindowCompat.getInsetsController(window, decorView)
+            controller.hide(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior =
-                WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        } else {
-            @Suppress("DEPRECATION")
-            activity.window.decorView.systemUiVisibility = (
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                            or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            or View.SYSTEM_UI_FLAG_FULLSCREEN
-                    )
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } catch (_: Exception) {
+            // 安全容錯，防止特殊客製化 ROM 在 View 尚未附加前拋出異常
         }
     }
 }
