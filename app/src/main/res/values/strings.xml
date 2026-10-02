@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">UyenLauncher</string>
+    <string name="welcome_message">Welcome to Uyen Handheld</string>
+    <string name="skip_intro">Tap anywhere to skip</string>
+    <string name="play">開始遊戲</string>
+    <string name="settings">系統設定</string>
+    <string name="library">遊戲庫</string>
+</resources>

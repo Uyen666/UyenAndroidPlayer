@@ -1,0 +1,8 @@
+<resources>
+    <color name="launcher_bg">#0A0E17</color>
+    <color name="ps5_blue">#00439C</color>
+    <color name="ps5_accent">#0070D1</color>
+    <color name="steam_dark">#171A21</color>
+    <color name="steam_card">#2A475E</color>
+    <color name="pure_white">#FFFFFF</color>
+</resources>
