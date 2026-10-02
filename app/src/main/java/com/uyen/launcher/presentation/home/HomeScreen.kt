@@ -1,5 +1,6 @@
 package com.uyen.launcher.presentation.home
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
@@ -27,9 +28,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.uyen.launcher.data.model.GameItem
 import com.uyen.launcher.presentation.controller.TouchGamepadOverlay
 import com.uyen.launcher.presentation.home.components.ConsoleDockBar
 import com.uyen.launcher.presentation.home.components.GameCarousel
@@ -48,6 +51,7 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val games by viewModel.games.collectAsState()
     val selectedIndex by viewModel.selectedGameIndex.collectAsState()
     val profile by viewModel.playerProfile.collectAsState()
@@ -58,6 +62,9 @@ fun HomeScreen(
     val isTaskSwitcherOpen by viewModel.isTaskSwitcherOpen.collectAsState()
     val isGamepadOverlayActive by viewModel.isGamepadOverlayActive.collectAsState()
     val isFullScreenControllerMode by viewModel.isFullScreenControllerMode.collectAsState()
+    val isKioskModeEnabled by viewModel.isKioskModeEnabled.collectAsState()
+
+    val runningTasks by viewModel.runningTasks.collectAsState()
     val boostMessage by viewModel.boostMessage.collectAsState()
 
     val currentGame = games.getOrNull(selectedIndex)
@@ -179,12 +186,20 @@ fun HomeScreen(
             )
         }
 
-        // 掌機多工任務管理器彈窗
+        // 掌機真實多工任務管理器彈窗
         HandheldTaskSwitcherDialog(
             visible = isTaskSwitcherOpen,
-            recentGames = games,
-            onSwitchToGame = { viewModel.launchGame(it) },
-            onKillGame = { viewModel.killGame(it) },
+            runningTasks = runningTasks,
+            onSwitchToTask = { task ->
+                val game = games.firstOrNull { it.id == task.id } ?: GameItem(
+                    id = task.id,
+                    title = task.title,
+                    category = com.uyen.launcher.data.model.GameCategory.TOOL,
+                    packageName = task.packageName
+                )
+                viewModel.launchGame(game)
+            },
+            onKillTask = { viewModel.killTask(it) },
             onCleanAll = {
                 viewModel.cleanMemory()
                 viewModel.setTaskSwitcherOpen(false)
@@ -205,7 +220,22 @@ fun HomeScreen(
             visible = isSettingsOpen,
             stats = stats,
             isGamepadOverlayActive = isGamepadOverlayActive,
+            isKioskModeActive = isKioskModeEnabled,
             onToggleGamepadOverlay = { viewModel.setGamepadOverlayActive(it) },
+            onToggleKioskMode = { enabled ->
+                val activity = context as? Activity
+                if (enabled) {
+                    try {
+                        activity?.startLockTask()
+                        viewModel.setKioskModeEnabled(true)
+                    } catch (_: Exception) {}
+                } else {
+                    try {
+                        activity?.stopLockTask()
+                        viewModel.setKioskModeEnabled(false)
+                    } catch (_: Exception) {}
+                }
+            },
             onOpenControllerMode = { viewModel.setFullScreenControllerMode(true) },
             onOpenTaskSwitcher = { viewModel.setTaskSwitcherOpen(true) },
             onCleanRam = { viewModel.cleanMemory() },

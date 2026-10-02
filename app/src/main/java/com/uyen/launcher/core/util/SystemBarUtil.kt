@@ -18,7 +18,7 @@ object SystemBarUtil {
             val controller = WindowCompat.getInsetsController(window, decorView)
             controller.hide(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
         } catch (_: Exception) {
             // 安全容錯，防止特殊客製化 ROM 在 View 尚未附加前拋出異常
         }

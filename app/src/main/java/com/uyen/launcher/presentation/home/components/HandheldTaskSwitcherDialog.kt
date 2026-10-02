@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -39,9 +40,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.uyen.launcher.data.model.GameItem
+import com.uyen.launcher.data.model.RunningTask
 import com.uyen.launcher.presentation.theme.AccentGold
 import com.uyen.launcher.presentation.theme.AccentGreen
 import com.uyen.launcher.presentation.theme.BackgroundDark
@@ -55,15 +57,15 @@ import com.uyen.launcher.presentation.theme.TextPrimary
 import com.uyen.launcher.presentation.theme.TextSecondary
 
 /**
- * 掌機多工任務切換器 (Handheld Task Switcher)
- * 模擬主機後台多工面板，支援一鍵切換與終止背景程序
+ * 掌機多工任務管理視窗 (Handheld Task Switcher)
+ * 真實管理當前啟動的後台遊戲與應用程序
  */
 @Composable
 fun HandheldTaskSwitcherDialog(
     visible: Boolean,
-    recentGames: List<GameItem>,
-    onSwitchToGame: (GameItem) -> Unit,
-    onKillGame: (GameItem) -> Unit,
+    runningTasks: List<RunningTask>,
+    onSwitchToTask: (RunningTask) -> Unit,
+    onKillTask: (RunningTask) -> Unit,
     onCleanAll: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -113,29 +115,31 @@ fun HandheldTaskSwitcherDialog(
                             color = TextPrimary
                         )
                         Text(
-                            text = "當前運行與最近使用的遊戲程序",
+                            text = if (runningTasks.isEmpty()) "後台已清空" else "目前有 ${runningTasks.size} 個遊戲後台運行中",
                             fontSize = 12.sp,
                             color = TextSecondary
                         )
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(
-                            onClick = onCleanAll,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AccentGreen.copy(alpha = 0.2f),
-                                contentColor = AccentGreen
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.border(1.dp, AccentGreen.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CleaningServices,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "一鍵結束全部背景", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        if (runningTasks.isNotEmpty()) {
+                            Button(
+                                onClick = onCleanAll,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = AccentGreen.copy(alpha = 0.2f),
+                                    contentColor = AccentGreen
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.border(1.dp, AccentGreen.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CleaningServices,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "一鍵結束全部", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
 
                         IconButton(onClick = onClose) {
@@ -148,82 +152,115 @@ fun HandheldTaskSwitcherDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // 多工任務列表
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(recentGames, key = { it.id }) { game ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(SurfaceCard)
-                                .border(1.dp, SurfaceCardBorder, RoundedCornerShape(12.dp))
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                if (runningTasks.isEmpty()) {
+                    // 空狀態：記憶體已清空
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = AccentGreen,
+                                modifier = Modifier.size(56.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "後台已無任何運行程序",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "系統 RAM 與 GPU 處於最高電競可用狀態",
+                                fontSize = 12.sp,
+                                color = TextMuted,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    // 真實運行任務列表
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(runningTasks, key = { it.id }) { task ->
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(SurfaceCard)
+                                    .border(1.dp, SurfaceCardBorder, RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(42.dp)
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(Ps5Blue.copy(alpha = 0.3f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Gamepad,
-                                        contentDescription = null,
-                                        tint = SteamDeckAccent,
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Gamepad,
+                                            contentDescription = null,
+                                            tint = SteamDeckAccent,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(14.dp))
+
+                                    Column {
+                                        Text(
+                                            text = task.title,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TextPrimary
+                                        )
+                                        Text(
+                                            text = "${task.packageName} • 記憶體: ~${task.memoryUsageMb} MB",
+                                            fontSize = 11.sp,
+                                            color = AccentGold
+                                        )
+                                    }
                                 }
 
-                                Spacer(modifier = Modifier.width(14.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(
+                                        onClick = {
+                                            onClose()
+                                            onSwitchToTask(task)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Ps5Blue),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("切換", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
 
-                                Column {
-                                    Text(
-                                        text = game.title,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextPrimary
-                                    )
-                                    Text(
-                                        text = "${game.category.displayName} • ${game.subtitle}",
-                                        fontSize = 11.sp,
-                                        color = TextMuted
-                                    )
-                                }
-                            }
-
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(
-                                    onClick = {
-                                        onClose()
-                                        onSwitchToGame(game)
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Ps5Blue),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("切換", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-
-                                IconButton(
-                                    onClick = { onKillGame(game) }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "關閉任務",
-                                        tint = Color(0xFFEF4444)
-                                    )
+                                    IconButton(
+                                        onClick = { onKillTask(task) }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "結束程序",
+                                            tint = Color(0xFFEF4444)
+                                        )
+                                    }
                                 }
                             }
                         }

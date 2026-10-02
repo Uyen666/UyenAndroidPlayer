@@ -66,6 +66,12 @@ fun GameCarousel(
 ) {
     val listState = rememberLazyListState()
 
+    androidx.compose.runtime.LaunchedEffect(selectedIndex) {
+        if (games.isNotEmpty() && selectedIndex in games.indices) {
+            listState.animateScrollToItem(selectedIndex)
+        }
+    }
+
     LazyRow(
         state = listState,
         contentPadding = PaddingValues(horizontal = 36.dp),

@@ -41,3 +41,11 @@ data class SystemStats(
     val isCharging: Boolean = true,
     val refreshRateFps: Int = 90
 )
+
+data class RunningTask(
+    val id: String,
+    val title: String,
+    val packageName: String,
+    val memoryUsageMb: Long = 85,
+    val startTimeMillis: Long = System.currentTimeMillis()
+)

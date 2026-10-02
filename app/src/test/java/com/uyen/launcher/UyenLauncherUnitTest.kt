@@ -89,4 +89,24 @@ class UyenLauncherUnitTest {
         assertEquals(1.0f, pressedA.btnR2, 0.001f)
         assertFalse(pressedA.btnB)
     }
+
+    @Test
+    fun testRunningTaskCreationAndLifecycle() {
+        val task = com.uyen.launcher.data.model.RunningTask(
+            id = "galgame_tyranor",
+            title = "Tyranor",
+            packageName = "com.tyranor",
+            memoryUsageMb = 120
+        )
+
+        assertEquals("galgame_tyranor", task.id)
+        assertEquals("com.tyranor", task.packageName)
+        assertEquals(120L, task.memoryUsageMb)
+
+        val taskList = mutableListOf(task)
+        assertEquals(1, taskList.size)
+
+        taskList.removeIf { it.id == "galgame_tyranor" }
+        assertTrue(taskList.isEmpty())
+    }
 }

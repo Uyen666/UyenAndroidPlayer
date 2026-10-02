@@ -62,7 +62,9 @@ fun QuickSettingsDrawer(
     visible: Boolean,
     stats: SystemStats,
     isGamepadOverlayActive: Boolean,
+    isKioskModeActive: Boolean,
     onToggleGamepadOverlay: (Boolean) -> Unit,
+    onToggleKioskMode: (Boolean) -> Unit,
     onOpenControllerMode: () -> Unit,
     onOpenTaskSwitcher: () -> Unit,
     onCleanRam: () -> Unit,
@@ -216,6 +218,41 @@ fun QuickSettingsDrawer(
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
                                 checkedTrackColor = Ps5Blue
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 掌機純淨鎖定 (Kiosk 模式)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(SurfaceCard)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "🔒 掌機沉浸鎖定 (Kiosk)",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "停用系統下拉通知欄與邊緣返回手勢",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                        }
+                        Switch(
+                            checked = isKioskModeActive,
+                            onCheckedChange = onToggleKioskMode,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = AccentGold
                             )
                         )
                     }
