@@ -80,7 +80,15 @@ object ConsoleLockManager {
 
                 dpm.setLockTaskPackages(adminComponent, installedPackages.toTypedArray())
 
-                // 核心關鍵：將 LockTask 特性設為 NONE
+                // 核心關鍵 1：DevicePolicyManager.setStatusBarDisabled(true)
+                // 彻底拔除狀態列視窗，封鎖通知、快捷開關與所有狀態列浮層/半透明拉條！
+                try {
+                    dpm.setStatusBarDisabled(adminComponent, true)
+                } catch (e: Exception) {
+                    Log.w(TAG, "setStatusBarDisabled error: ${e.message}")
+                }
+
+                // 核心關鍵 2：將 LockTask 特性設為 NONE
                 // 效果：底層徹底拔除狀態列下拉手勢、遮蔽實體與虛擬 Home / Recents 鍵
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     dpm.setLockTaskFeatures(
@@ -104,7 +112,16 @@ object ConsoleLockManager {
      * 解除掌機鎖定模式
      */
     fun disableConsoleLock(activity: Activity): Boolean {
+        val context = activity.applicationContext
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+        val adminComponent = UyenDeviceAdminReceiver.getComponentName(context)
+
         return try {
+            if (isDeviceOwner(context) && dpm != null) {
+                try {
+                    dpm.setStatusBarDisabled(adminComponent, false)
+                } catch (_: Exception) {}
+            }
             activity.stopLockTask()
             Log.i(TAG, "Console lock task stopped successfully")
             true
