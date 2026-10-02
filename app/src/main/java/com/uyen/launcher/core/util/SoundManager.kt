@@ -34,6 +34,12 @@ class SoundManager(private val context: Context) {
         } catch (_: Exception) {}
     }
 
+    suspend fun playCancelSound() = withContext(Dispatchers.Default) {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_PROP_NACK, 50)
+        } catch (_: Exception) {}
+    }
+
     suspend fun playLaserSound() = withContext(Dispatchers.Default) {
         try {
             toneGenerator?.startTone(ToneGenerator.TONE_DTMF_1, 40)

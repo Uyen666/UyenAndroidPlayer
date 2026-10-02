@@ -280,15 +280,30 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setSettingsOpen(open: Boolean) {
-        _isSettingsOpen.value = open
+        if (_isSettingsOpen.value != open) {
+            _isSettingsOpen.value = open
+            viewModelScope.launch {
+                if (open) soundManager.playConfirmSound() else soundManager.playCancelSound()
+            }
+        }
     }
 
     fun setLibraryOpen(open: Boolean) {
-        _isLibraryOpen.value = open
+        if (_isLibraryOpen.value != open) {
+            _isLibraryOpen.value = open
+            viewModelScope.launch {
+                if (open) soundManager.playConfirmSound() else soundManager.playCancelSound()
+            }
+        }
     }
 
     fun setTaskSwitcherOpen(open: Boolean) {
-        _isTaskSwitcherOpen.value = open
+        if (_isTaskSwitcherOpen.value != open) {
+            _isTaskSwitcherOpen.value = open
+            viewModelScope.launch {
+                if (open) soundManager.playConfirmSound() else soundManager.playCancelSound()
+            }
+        }
     }
 
     fun setGamepadOverlayActive(active: Boolean) {

@@ -2,9 +2,9 @@
 
 - **專案名稱**：UyenLauncher (UyenAndroidPlayer)
 - **遠端倉庫**：`https://github.com/Uyen666/UyenAndroidPlayer.git`
-- **當前版本**：v0.3.0-rc1 (Auto-Hide Edge Pill, Hardware Console Drawer & Cutout Fix)
+- **當前版本**：v0.3.1-rc1 (16:9 Landscape Artwork Capsules, Luxury Damped Carousel & Spring Library Modal)
 - **目標設備**：小米 Redmi 13C (Helio G85 / 720×1600 @ 90Hz / Android 14 HyperOS)
-- **最後更新時間**：2026-10-02 23:20
+- **最後更新時間**：2026-10-03 00:41
 
 ---
 
@@ -53,6 +53,24 @@
 - [x] **控制台狀態聯動與引導**
   - `QuickSettingsDrawer` 即時感知 Device Owner 狀態，提供一鍵啟用/解除與終端指令指引。
 
+### Phase 5: 掌機經典橫向膠囊卡片、滿版藝術視覺、阻尼物理滾動與遊戲庫彈簧動畫 - 全部通過 ✅
+- [x] **低姿態橫向膠囊卡片 (Landscape Capsule Cards)**
+  - 廢除過去偏正方形卡片 (140×150dp)，改為 SteamOS / Switch 經典 16:9 低姿態橫向長方形膠囊 (188×106dp)。
+  - `LazyRow` 高度由 180dp 調整為 142dp，在 Redmi 13C 橫屏釋放關鍵垂直空間，與 `HeroBanner` 達成黃金比例呼吸感。
+- [x] **整張卡都是遊戲圖示 (Full-Bleed Artwork Visuals & Zero Overlap)**
+  - 打造 `AppIconUtil.kt` 高性能 LRU 圖標快取與專屬主題漸層引擎。
+  - 已安裝應用顯示真實高解析 Android 應用圖標（置頂居中 46dp），搭配背景動態漫射光。
+  - 內建遊戲與模擬器呈現全卡片主題藝術漸層與 86dp 旋轉高科技主題浮水印。
+  - 底部配置深色暗角漸層保護罩 (`Brush.verticalGradient`)，標題與分類標籤獨立置底，徹底根除圖標與文字重疊問題。
+- [x] **520ms 旗艦主機阻尼物理滾動 (Silky Smooth Console Scroll Physics)**
+  - 告別原生 `animateScrollToItem` 的生硬猛衝，引入 `animateScrollBy` 搭配 `CubicBezierEasing(0.22f, 1f, 0.36f, 1f)` 旗艦主機減速曲線。
+  - 卡片焦點移動時溫潤滑向視窗正中央，具備 PS5 / Steam Deck 等級的平滑減速與懸浮微彈性（Spring 0.85f）。
+- [x] **Steam OS 應用庫彈簧微回彈展開動畫 (Spring Scale-in Modal)**
+  - 徹底移除阻礙 Compose 退場動畫之 `if (!visible) return`。
+  - 展開時採用彈簧縮放與平滑位移：`scaleIn(0.90f, spring(0.80f, StiffnessMediumLow)) + slideInVertically + fadeIn()`。
+  - 退出時採用平滑收縮：`scaleOut(0.94f) + slideOutVertically + fadeOut()`。
+  - 應用庫內所有項目同步升級為橫向全幅藝術膠囊，開啟與關閉全流程聯動 `SoundManager` 音效回饋。
+
 ---
 
 ## 📋 功能模組狀態一覽
@@ -60,7 +78,9 @@
 | 模組名稱 | 狀態 | 驗證結果 |
 | :--- | :--- | :--- |
 | **Steam OS Boot Intro** | 🟢 運行正常 | 支援觸控點擊即跳過 |
-| **PS5 輪播主介面 (Home Deck)** | 🟢 運行正常 | 100% 純淨無遮擋，平滑彈簧卡片切換 |
+| **16:9 橫向滿版遊戲卡片** | 🟢 運行正常 | 188×106dp 橫向低姿態膠囊，滿版藝術漸層，文字圖標零重疊 |
+| **旗艦主機阻尼平滑滾動** | 🟢 運行正常 | 520ms 貝塞爾居中滑動，PS5/Steam Deck 級別絲滑物理體感 |
+| **Steam OS 應用庫 (彈簧動畫)** | 🟢 運行正常 | 具備 0.80f 彈簧縮放進出場動畫，卡片全幅藝術視覺化 |
 | **AutoHideEdgeHandle 微型膠囊** | 🟢 運行正常 | 右側 3.5dp 微光條，點擊滑出藥丸，3秒自動縮回 |
 | **掌機系統控制台 (左側滑出)** | 🟢 運行正常 | 整合音量/亮度滑桿、Wi-Fi/藍牙、HUD 開關、專注靜音 |
 | **實體主機級鎖死 (LockTask)** | 🟢 運行正常 | `ConsoleLockManager` + `StatusBarManager` 廢除狀態列下拉 |
@@ -71,3 +91,4 @@
 | **8-bit 太空突擊街機 (內建小遊戲)** | 🟢 運行正常 | 90Hz Canvas 繪製、復古音效、CRT 掃描線、離線隨開隨玩 |
 | **ROM & Galgame 本地掃描器** | 🟢 運行正常 | 自動探測與建立 `/sdcard/Games` 目錄 |
 | **單元測試套件** | 🟢 全部通過 | 100% 通過（共 11 項測試案例） |
+
