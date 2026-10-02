@@ -38,10 +38,19 @@ object SystemBarUtil {
             val decorView = window.peekDecorView() ?: window.decorView ?: return
             val controller = WindowCompat.getInsetsController(window, decorView)
 
-            // 3. 隱藏狀態欄與導航欄
+            // 3. 隱藏狀態欄與導航欄，設定暫態手勢行為 (杜絕持久化拉出狀態列)
             controller.hide(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+            window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            window.clearFlags(WindowManager.LayoutParams.FLAG_FORCE_NOT_FULLSCREEN)
+
+            // 自動壓制回彈：若有任何邊緣觸控促使系統列被喚出，立刻自動壓回隱藏
+            decorView.setOnApplyWindowInsetsListener { view, insets ->
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+                view.onApplyWindowInsets(insets)
+            }
 
             // 4. 註冊全邊緣手勢排除區 (Android 10+)，告訴系統「這些邊緣的觸控全歸 UyenLauncher 獨佔」
             updateGestureExclusions(decorView)
