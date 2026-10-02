@@ -62,6 +62,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         SystemBarUtil.hideSystemBars(this)
+        homeViewModel.checkDeviceOwnerState()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

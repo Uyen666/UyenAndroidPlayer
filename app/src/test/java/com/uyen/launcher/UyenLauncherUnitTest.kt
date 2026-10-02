@@ -150,4 +150,15 @@ class UyenLauncherUnitTest {
         val brightnessUnder = 0.01f.coerceIn(0.05f, 1.0f)
         assertEquals(0.05f, brightnessUnder, 0.001f)
     }
+
+    @Test
+    fun testConsoleLockManagerCommands() {
+        val cmd = com.uyen.launcher.core.kiosk.ConsoleLockManager.getDeviceOwnerAdbCommand()
+        assertTrue(cmd.contains("dpm set-device-owner"))
+        assertTrue(cmd.contains("UyenDeviceAdminReceiver"))
+
+        val statusCmd = com.uyen.launcher.core.kiosk.ConsoleLockManager.getStatusBarDisableAdbCommand()
+        assertTrue(statusCmd.contains("statusbar-expansion"))
+        assertTrue(statusCmd.contains("notification-peek"))
+    }
 }

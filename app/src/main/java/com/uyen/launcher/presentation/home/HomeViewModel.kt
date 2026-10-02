@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.uyen.launcher.core.hardware.MemoryCleaner
 import com.uyen.launcher.core.hardware.PerformanceMonitor
 import com.uyen.launcher.core.hardware.SystemControlManager
+import com.uyen.launcher.core.kiosk.ConsoleLockManager
 import com.uyen.launcher.core.util.SoundManager
 import com.uyen.launcher.data.model.GameItem
 import com.uyen.launcher.data.model.PlayerProfile
@@ -67,8 +68,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val runningTasks: StateFlow<List<RunningTask>> = _runningTasks.asStateFlow()
 
     // 掌機沉浸鎖定模式 (Kiosk Mode，關閉系統邊緣手勢與狀態欄下滑)
-    private val _isKioskModeEnabled = MutableStateFlow(false)
+    private val _isKioskModeEnabled = MutableStateFlow(ConsoleLockManager.isLockTaskActive(application))
     val isKioskModeEnabled: StateFlow<Boolean> = _isKioskModeEnabled.asStateFlow()
+
+    // 是否取得 Device Owner 掌機最高管理特權
+    private val _isDeviceOwner = MutableStateFlow(ConsoleLockManager.isDeviceOwner(application))
+    val isDeviceOwner: StateFlow<Boolean> = _isDeviceOwner.asStateFlow()
 
     // 內建 8-bit 太空突擊懷舊街機狀態
     private val _isRetroArcadeOpen = MutableStateFlow(false)
@@ -292,6 +297,37 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setFullScreenControllerMode(active: Boolean) {
         _isFullScreenControllerMode.value = active
+    }
+
+    fun checkDeviceOwnerState() {
+        _isDeviceOwner.value = ConsoleLockManager.isDeviceOwner(getApplication())
+        _isKioskModeEnabled.value = ConsoleLockManager.isLockTaskActive(getApplication())
+    }
+
+    fun toggleKioskLock(activity: Activity?) {
+        if (activity == null) return
+        val currentLocked = ConsoleLockManager.isLockTaskActive(activity)
+        if (currentLocked) {
+            ConsoleLockManager.disableConsoleLock(activity)
+            _isKioskModeEnabled.value = false
+            _boostMessage.value = "已解除掌機鎖定模式"
+        } else {
+            val success = ConsoleLockManager.enableConsoleLock(activity)
+            _isKioskModeEnabled.value = success
+            if (success) {
+                _boostMessage.value = if (_isDeviceOwner.value) {
+                    "🔒 實體掌機級硬體鎖定已啟動 (狀態列下拉徹底廢除)"
+                } else {
+                    "🔒 掌機鎖定模式已啟動 (建議配置 Device Owner 達成完全鎖死)"
+                }
+            } else {
+                _boostMessage.value = "啟動鎖定失敗，請確認權限"
+            }
+        }
+        viewModelScope.launch {
+            delay(2500)
+            _boostMessage.value = null
+        }
     }
 
     fun setKioskModeEnabled(enabled: Boolean) {

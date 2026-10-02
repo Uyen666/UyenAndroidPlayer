@@ -69,6 +69,7 @@ fun HomeScreen(
     val isGamepadOverlayActive by viewModel.isGamepadOverlayActive.collectAsState()
     val isFullScreenControllerMode by viewModel.isFullScreenControllerMode.collectAsState()
     val isKioskModeEnabled by viewModel.isKioskModeEnabled.collectAsState()
+    val isDeviceOwner by viewModel.isDeviceOwner.collectAsState()
     val isRetroArcadeOpen by viewModel.isRetroArcadeOpen.collectAsState()
     val assistantDialogItem by viewModel.assistantDialogItem.collectAsState()
 
@@ -255,24 +256,14 @@ fun HomeScreen(
             isFocusDndMode = isFocusDndMode,
             mediaVolume = mediaVolume,
             screenBrightness = screenBrightness,
+            isDeviceOwner = isDeviceOwner,
             onVolumeChange = { viewModel.setVolume(it) },
             onBrightnessChange = { viewModel.setBrightness(context as? Activity, it) },
             onTogglePerformanceHud = { viewModel.setPerformanceHudVisible(it) },
             onToggleFocusDndMode = { viewModel.setFocusDndMode(it) },
             onToggleGamepadOverlay = { viewModel.setGamepadOverlayActive(it) },
-            onToggleKioskMode = { enabled ->
-                val activity = context as? Activity
-                if (enabled) {
-                    try {
-                        activity?.startLockTask()
-                        viewModel.setKioskModeEnabled(true)
-                    } catch (_: Exception) {}
-                } else {
-                    try {
-                        activity?.stopLockTask()
-                        viewModel.setKioskModeEnabled(false)
-                    } catch (_: Exception) {}
-                }
+            onToggleKioskMode = {
+                viewModel.toggleKioskLock(context as? Activity)
             },
             onOpenWifiSettings = { viewModel.openWifiSettings() },
             onOpenBluetoothSettings = { viewModel.openBluetoothSettings() },

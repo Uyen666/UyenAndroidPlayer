@@ -84,6 +84,7 @@ fun QuickSettingsDrawer(
     isFocusDndMode: Boolean,
     mediaVolume: Float,
     screenBrightness: Float,
+    isDeviceOwner: Boolean = false,
     onVolumeChange: (Float) -> Unit,
     onBrightnessChange: (Float) -> Unit,
     onTogglePerformanceHud: (Boolean) -> Unit,
@@ -301,11 +302,36 @@ fun QuickSettingsDrawer(
 
                     // 🔒 掌機沉浸鎖定 (Kiosk)
                     ToggleCard(
-                        title = "🔒 掌機沉浸鎖定 (Kiosk)",
-                        description = "停用系統下拉通知欄與邊緣返回手勢",
+                        title = if (isDeviceOwner) "🔒 掌機極限硬體鎖死 (Device Owner)" else "🔒 掌機沉浸鎖定 (Kiosk)",
+                        description = if (isDeviceOwner) "已取得設備擁有者特權：底層徹底拔除狀態列下拉與系統鍵" else "停用系統下拉通知欄與邊緣返回手勢 (常規模式)",
                         checked = isKioskModeActive,
                         onCheckedChange = onToggleKioskMode
                     )
+
+                    if (!isDeviceOwner) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF161B22))
+                                .border(1.dp, SteamDeckAccent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = "💡 如需實體主機級「徹底廢除狀態列下拉」，請於電腦終端執行：",
+                                fontSize = 10.sp,
+                                color = SteamDeckAccent
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "adb shell dpm set-device-owner com.uyen.launcher/.receiver.UyenDeviceAdminReceiver",
+                                fontSize = 9.sp,
+                                color = AccentGold,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 

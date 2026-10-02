@@ -41,6 +41,18 @@
   - 配置 `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`，視窗鋪滿水滴屏區域，消除橫屏黑邊。
   - 配置 `setSystemGestureExclusionRects` 邊緣手勢排除，抑制滑動時彈出系統返回箭頭與黑色手勢條。
 
+### Phase 4: 實體主機等級硬體鎖死 (Device Owner, LockTask & Status Bar Disable) - 全部通過 ✅
+- [x] **Device Owner 模式支持 (`UyenDeviceAdminReceiver`)**
+  - 配置 `DeviceAdminReceiver` 與 `device_admin_receiver.xml`，支援 ADB 指令 `dpm set-device-owner`。
+  - Activity 宣告 `android:lockTaskMode="if_whitelisted"`。
+- [x] **掌機硬體鎖定管理器 (`ConsoleLockManager`)**
+  - 動態配置 `setLockTaskPackages` 白名單（包含本啟動器與所有遊戲/模擬器）。
+  - 設定 `LOCK_TASK_FEATURE_NONE`，徹底廢除狀態列下拉手勢、遮蔽返回鍵與多工鍵。
+- [x] **StatusBar 底層防護指令 (`cmd statusbar send-disable-flag`)**
+  - 提供免登入小米帳號即時完全停用狀態列下拉：`statusbar-expansion notification-peek home recents`。
+- [x] **控制台狀態聯動與引導**
+  - `QuickSettingsDrawer` 即時感知 Device Owner 狀態，提供一鍵啟用/解除與終端指令指引。
+
 ---
 
 ## 📋 功能模組狀態一覽
@@ -51,10 +63,11 @@
 | **PS5 輪播主介面 (Home Deck)** | 🟢 運行正常 | 100% 純淨無遮擋，平滑彈簧卡片切換 |
 | **AutoHideEdgeHandle 微型膠囊** | 🟢 運行正常 | 右側 3.5dp 微光條，點擊滑出藥丸，3秒自動縮回 |
 | **掌機系統控制台 (左側滑出)** | 🟢 運行正常 | 整合音量/亮度滑桿、Wi-Fi/藍牙、HUD 開關、專注靜音 |
+| **實體主機級鎖死 (LockTask)** | 🟢 運行正常 | `ConsoleLockManager` + `StatusBarManager` 廢除狀態列下拉 |
 | **遊戲專注模式 (通知靜音)** | 🟢 運行正常 | 解決看不見通知卻有突然提示聲的問題 |
 | **全螢幕挖孔無黑邊與手勢排除** | 🟢 運行正常 | 水滴屏滿版渲染 + 邊緣手勢排除抑制返回箭頭 |
 | **真實掌機多工管理器** | 🟢 運行正常 | 動態 `RunningTask`，支援個別終止與一鍵釋放記憶體 |
 | **UyenController (PC手柄模式)** | 🟢 運行正常 | 支援 UDP 廣播，PC 接收端 `scripts/uyen_controller_receiver.py` 就緒 |
 | **8-bit 太空突擊街機 (內建小遊戲)** | 🟢 運行正常 | 90Hz Canvas 繪製、復古音效、CRT 掃描線、離線隨開隨玩 |
 | **ROM & Galgame 本地掃描器** | 🟢 運行正常 | 自動探測與建立 `/sdcard/Games` 目錄 |
-| **單元測試套件** | 🟢 全部通過 | 100% 通過（共 10 項測試案例） |
+| **單元測試套件** | 🟢 全部通過 | 100% 通過（共 11 項測試案例） |

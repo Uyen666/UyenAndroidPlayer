@@ -52,7 +52,8 @@
             android:stateNotNeeded="true"
             android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
-            android:theme="@style/Theme.UyenLauncher">
+            android:theme="@style/Theme.UyenLauncher"
+            android:lockTaskMode="if_whitelisted">
 
             <!-- Default Home Launcher Intent Filter -->
             <intent-filter>
@@ -67,6 +68,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Device Admin / Device Owner Receiver for Hardware Console Lock (Kiosk) -->
+        <receiver
+            android:name=".receiver.UyenDeviceAdminReceiver"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin_receiver" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.PROFILE_PROVISIONING_COMPLETE" />
+            </intent-filter>
+        </receiver>
 
     </application>
 
