@@ -2,6 +2,8 @@ package com.uyen.launcher.presentation.home.components
 
 import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -116,8 +118,14 @@ fun QuickSettingsDrawer(
         ) {
             AnimatedVisibility(
                 visible = visible,
-                enter = slideInHorizontally(initialOffsetX = { -it }),
-                exit = slideOutHorizontally(targetOffsetX = { -it }),
+                enter = slideInHorizontally(
+                    initialOffsetX = { -it },
+                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                ),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { -it },
+                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                ),
                 modifier = Modifier.align(Alignment.CenterStart)
             ) {
                 Column(

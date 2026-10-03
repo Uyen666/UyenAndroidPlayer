@@ -1,8 +1,13 @@
 package com.uyen.launcher.presentation.home.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -51,7 +56,17 @@ fun HeroBanner(
 ) {
     AnimatedContent(
         targetState = game,
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        transitionSpec = {
+            (fadeIn(animationSpec = tween(280)) + slideInVertically(
+                initialOffsetY = { 20 },
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+            ))
+            .togetherWith(
+                fadeOut(animationSpec = tween(180)) + slideOutVertically(
+                    targetOffsetY = { -16 }
+                )
+            )
+        },
         label = "hero_anim",
         modifier = modifier
     ) { targetGame ->

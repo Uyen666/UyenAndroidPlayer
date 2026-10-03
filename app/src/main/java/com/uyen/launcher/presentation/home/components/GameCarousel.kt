@@ -67,6 +67,7 @@ import com.uyen.launcher.presentation.theme.SteamDeckAccent
 import com.uyen.launcher.presentation.theme.SurfaceCardBorder
 import com.uyen.launcher.presentation.theme.TextMuted
 import com.uyen.launcher.presentation.theme.TextPrimary
+import com.uyen.launcher.presentation.theme.TextSecondary
 
 @Composable
 fun GameCarousel(
@@ -99,11 +100,11 @@ fun GameCarousel(
                 }
             } else {
                 val viewportWidth = layoutInfo.viewportSize.width
-                val cardWidthPx = with(density) { 188.dp.toPx() }
+                val cardWidthPx = with(density) { 216.dp.toPx() }
                 val centerOffsetPx = if (viewportWidth > 0) {
                     -((viewportWidth - cardWidthPx) / 2).toInt()
                 } else {
-                    -220
+                    -240
                 }
                 listState.animateScrollToItem(
                     index = selectedIndex,
@@ -115,18 +116,18 @@ fun GameCarousel(
 
     LazyRow(
         state = listState,
-        contentPadding = PaddingValues(horizontal = 40.dp),
+        contentPadding = PaddingValues(horizontal = 48.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .height(142.dp)
+            .height(108.dp)
     ) {
         itemsIndexed(games) { index, game ->
             val isSelected = index == selectedIndex
 
             val scale by animateFloatAsState(
-                targetValue = if (isSelected) 1.08f else 0.94f,
+                targetValue = if (isSelected) 1.07f else 0.94f,
                 animationSpec = spring(
                     dampingRatio = 0.85f,
                     stiffness = Spring.StiffnessLow
@@ -151,8 +152,50 @@ fun GameCarousel(
 }
 
 /**
- * 掌機經典 16:9 低姿態橫向膠囊卡片 (矮長方形 + 滿版整張遊戲視覺)
- * 解決圖標與文字重疊問題，呈現無懈可擊的商業級掌機美學
+ * 依據遊戲/應用動態提取專屬 LevelUp 主題色彩 (附圖 2 風格)
+ */
+private fun getLevelUpCardBrush(game: GameItem): Brush {
+    val titleLower = game.title.lowercase()
+    val idLower = game.id.lowercase()
+    val pkgLower = (game.packageName ?: "").lowercase()
+
+    return when {
+        titleLower.contains("citra") || idLower.contains("citra") -> Brush.horizontalGradient(
+            listOf(Color(0xFFD97706), Color(0xFFF59E0B))
+        )
+        titleLower.contains("duckstation") || idLower.contains("duckstation") -> Brush.horizontalGradient(
+            listOf(Color(0xFF0369A1), Color(0xFF0284C7))
+        )
+        titleLower.contains("drastic") || idLower.contains("drastic") -> Brush.horizontalGradient(
+            listOf(Color(0xFF0E7490), Color(0xFF06B6D4))
+        )
+        titleLower.contains("retroarch") || idLower.contains("retroarch") -> Brush.horizontalGradient(
+            listOf(Color(0xFF0F172A), Color(0xFF334155))
+        )
+        titleLower.contains("chrome") || idLower.contains("chrome") -> Brush.horizontalGradient(
+            listOf(Color(0xFF1E293B), Color(0xFF475569))
+        )
+        titleLower.contains("play") || pkgLower.contains("vending") -> Brush.horizontalGradient(
+            listOf(Color(0xFF1E293B), Color(0xFF334155))
+        )
+        game.category == GameCategory.GALGAME -> Brush.horizontalGradient(
+            listOf(Color(0xFF581C87), Color(0xFF8B5CF6))
+        )
+        game.category == GameCategory.RETRO -> Brush.horizontalGradient(
+            listOf(Color(0xFF7C2D12), Color(0xFFEA580C))
+        )
+        game.category == GameCategory.STREAMING -> Brush.horizontalGradient(
+            listOf(Color(0xFF1E3A8A), Color(0xFF2563EB))
+        )
+        game.category == GameCategory.CUSTOM -> Brush.horizontalGradient(
+            listOf(Color(0xFF065F46), Color(0xFF0D9488))
+        )
+        else -> AppIconUtil.getArtworkGradient(game)
+    }
+}
+
+/**
+ * LevelUp 原生掌機長方形膠囊卡片 (附圖 2：左側標題與類別徽章，右側長方圖標與封面)
  */
 @Composable
 private fun GameCard(
@@ -161,30 +204,31 @@ private fun GameCard(
     scale: Float,
     onClick: () -> Unit
 ) {
-    val cardShape = RoundedCornerShape(14.dp)
+    val cardShape = RoundedCornerShape(16.dp)
     val appIcon = rememberAppIcon(game.packageName)
+    val backgroundBrush = remember(game) { getLevelUpCardBrush(game) }
 
     Box(
         modifier = Modifier
             .scale(scale)
-            .width(188.dp)
-            .height(106.dp)
+            .width(216.dp)
+            .height(74.dp)
             .shadow(
-                elevation = if (isSelected) 16.dp else 4.dp,
+                elevation = if (isSelected) 18.dp else 4.dp,
                 shape = cardShape,
                 ambientColor = if (isSelected) Ps5BlueGlow else Color.Black,
                 spotColor = if (isSelected) Ps5BlueGlow else Color.Black
             )
             .clip(cardShape)
-            .background(AppIconUtil.getArtworkGradient(game))
+            .background(backgroundBrush)
             .border(
                 width = if (isSelected) 2.5.dp else 1.dp,
                 brush = if (isSelected) {
-                    Brush.linearGradient(listOf(Ps5BlueGlow, SteamDeckAccent))
+                    Brush.linearGradient(listOf(Color.White, Color(0xFF00E5FF)))
                 } else {
                     Brush.linearGradient(
                         listOf(
-                            SurfaceCardBorder.copy(alpha = 0.5f),
+                            SurfaceCardBorder.copy(alpha = 0.45f),
                             Color.Transparent
                         )
                     )
@@ -197,50 +241,93 @@ private fun GameCard(
                 onClick = onClick
             )
     ) {
-        // 1. 底層滿版旋轉浮水印層 (全卡片滿版紋理)
-        Icon(
-            imageVector = when (game.category) {
-                GameCategory.GALGAME -> Icons.AutoMirrored.Filled.MenuBook
-                GameCategory.RETRO -> Icons.Default.SportsEsports
-                GameCategory.STREAMING -> Icons.Default.Tv
-                GameCategory.CUSTOM -> Icons.Default.Widgets
-                else -> Icons.Default.Gamepad
-            },
-            contentDescription = null,
-            tint = Color.White.copy(alpha = 0.15f),
-            modifier = Modifier
-                .size(86.dp)
-                .align(Alignment.CenterEnd)
-                .offset(x = 16.dp, y = (-8).dp)
-                .rotate(-15f)
-        )
-
-        // 2. 上部圖標展示區 (靠上置中，避免與底部文字重疊)
+        // 微光磨砂半透明遮罩層
         Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 10.dp)
-        ) {
-            if (appIcon != null) {
-                // 已安裝應用的真實高解析圖標
-                Image(
-                    bitmap = appIcon,
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .shadow(6.dp, RoundedCornerShape(12.dp))
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color.Black.copy(alpha = 0.35f),
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.22f)
+                        )
+                    )
                 )
-            } else {
-                // 內置核心 / 模擬器標誌
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Black.copy(alpha = 0.28f)),
-                    contentAlignment = Alignment.Center
-                ) {
+        )
+
+        // 水平分佈佈局：左側文字標題與分類標籤，右側高解析度長方形/圓角圖示 (附圖 2 LevelUp 風格)
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 14.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // 左側：標題文字與分類膠囊區
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 10.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = game.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    letterSpacing = 0.2.sp
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.White.copy(alpha = 0.18f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = game.category.displayName,
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) Color(0xFF00E5FF) else TextSecondary
+                        )
+                    }
+
+                    if (game.playTimeHours > 0) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "${String.format("%.0fh", game.playTimeHours)}",
+                            fontSize = 8.5.sp,
+                            color = AccentGold.copy(alpha = 0.9f),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // 右側：長方形 / 大圓角圖標區 (附圖 2 圖示展示區)
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.Black.copy(alpha = 0.25f)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (appIcon != null) {
+                    Image(
+                        bitmap = appIcon,
+                        contentDescription = game.title,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                } else {
                     Icon(
                         imageVector = when (game.category) {
                             GameCategory.GALGAME -> Icons.AutoMirrored.Filled.MenuBook
@@ -250,102 +337,40 @@ private fun GameCard(
                             else -> Icons.Default.Gamepad
                         },
                         contentDescription = null,
-                        tint = if (isSelected) Color.White else Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier.size(26.dp)
+                        tint = if (isSelected) Color(0xFF00E5FF) else Color.White,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
         }
 
-        // 3. 底部暗角漸層保護罩 (Dark Vignette Scrim) - 高度自 45% 向下覆蓋，保護標題對比度
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.5f),
-                            Color.Black.copy(alpha = 0.92f)
-                        ),
-                        startY = 50f
-                    )
-                )
-        )
-
-        // 4. 右上角「選中就緒」提示微膠囊 (Focused Indicator Pill)
+        // 選中時頂部極致微光高亮線 (PS5 質感細節)
         if (isSelected) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 7.dp, end = 7.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Ps5Blue.copy(alpha = 0.9f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(10.dp)
-                )
-                Spacer(modifier = Modifier.width(2.dp))
-                Text(
-                    text = "PLAY",
-                    fontSize = 8.5.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White,
-                    letterSpacing = 0.5.sp
-                )
-            }
-        }
-
-        // 5. 底部資訊文字層 (標題與類別標籤，乾淨置底零重疊)
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 7.dp)
-        ) {
-            Text(
-                text = game.title,
-                fontSize = 12.sp,
-                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
-                color = TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(1.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = game.category.displayName,
-                    fontSize = 9.sp,
-                    color = if (isSelected) SteamDeckAccent else TextMuted,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                if (game.playTimeHours > 0) {
-                    Text(
-                        text = "• ${String.format("%.0fh", game.playTimeHours)}",
-                        fontSize = 8.5.sp,
-                        color = AccentGold.copy(alpha = 0.85f)
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color.Transparent,
+                                Color(0xFF00E5FF),
+                                Color.White,
+                                Color(0xFF00E5FF),
+                                Color.Transparent
+                            )
+                        )
                     )
-                }
-            }
+            )
         }
 
-        // 6. 非選中時的微暗層 (讓焦點卡片躍然而出)
+        // 非選中焦點時的輕微灰階/暗化層，確保選中卡片對比強烈
         if (!isSelected) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.16f))
+                    .background(Color.Black.copy(alpha = 0.18f))
             )
         }
     }

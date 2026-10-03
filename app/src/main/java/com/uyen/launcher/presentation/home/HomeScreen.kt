@@ -4,27 +4,36 @@ import android.app.Activity
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -185,30 +194,70 @@ fun HomeScreen(
                 onAccountClick = { viewModel.setAccountDialogOpen(true) }
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            // 中央遊戲與橫向輪播區 (支援分頁左右橫向微滑動 + 交叉淡入絲滑動效)
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = {
+                    val forward = targetState.ordinal > initialState.ordinal
+                    (slideInHorizontally(
+                        initialOffsetX = { if (forward) it / 3 else -it / 3 },
+                        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                    ) + fadeIn(animationSpec = tween(220)))
+                    .togetherWith(
+                        slideOutHorizontally(
+                            targetOffsetX = { if (forward) -it / 3 else it / 3 },
+                            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                        ) + fadeOut(animationSpec = tween(180))
+                    )
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                label = "tab_content_anim"
+            ) { tab ->
+                val tabGames = when (tab) {
+                    com.uyen.launcher.data.model.MainNavTab.HOME -> games
+                    com.uyen.launcher.data.model.MainNavTab.STREAMING -> games.filter {
+                        it.category == com.uyen.launcher.data.model.GameCategory.STREAMING || it.id == "controller_mode"
+                    }
+                    com.uyen.launcher.data.model.MainNavTab.GAMES -> games.filter {
+                        it.category == com.uyen.launcher.data.model.GameCategory.GALGAME ||
+                        it.category == com.uyen.launcher.data.model.GameCategory.RETRO ||
+                        it.category == com.uyen.launcher.data.model.GameCategory.CUSTOM
+                    }
+                }
+                val tabIndex = selectedIndex.coerceIn(0, (tabGames.size - 1).coerceAtLeast(0))
+                val tabCurrentGame = tabGames.getOrNull(tabIndex) ?: tabGames.firstOrNull()
 
-            // 中央 Hero Banner 遊戲大圖與詳情 (PS5 質感呈現)
-            if (currentGame != null) {
-                HeroBanner(
-                    game = currentGame,
-                    onLaunch = { viewModel.launchGame(currentGame) }
-                )
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // 中央 Hero Banner 遊戲大圖與詳情 (PS5 質感呈現)
+                    if (tabCurrentGame != null) {
+                        HeroBanner(
+                            game = tabCurrentGame,
+                            onLaunch = { viewModel.launchGame(tabCurrentGame) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // 底部 90Hz 水平輪播卡片列 (LevelUp 附圖 2 風格)
+                    if (tabGames.isNotEmpty()) {
+                        GameCarousel(
+                            games = tabGames,
+                            selectedIndex = tabIndex,
+                            onSelectGame = { viewModel.selectGame(it) },
+                            onLaunchGame = { viewModel.launchGame(it) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+                }
             }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // 底部 90Hz 水平輪播卡片列 (PS5 微光磁吸卡片列)
-            if (displayGames.isNotEmpty()) {
-                val clampedIndex = selectedIndex.coerceIn(0, displayGames.size - 1)
-                GameCarousel(
-                    games = displayGames,
-                    selectedIndex = clampedIndex,
-                    onSelectGame = { viewModel.selectGame(it) },
-                    onLaunchGame = { viewModel.launchGame(it) }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
 
             // 底部控制欄 (LevelUp 同款佈局：左選單膠囊、正中功能膠囊、右多工圓鈕)
             BottomControlBar(

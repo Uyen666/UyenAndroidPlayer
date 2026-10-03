@@ -1,8 +1,12 @@
 package com.uyen.launcher.presentation.home.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +31,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,12 +66,19 @@ fun EmulatorAssistantDialog(
     onPlayBuiltinArcade: () -> Unit,
     onClose: () -> Unit
 ) {
+    var lastGameItem by remember { mutableStateOf(gameItem) }
+    if (gameItem != null) {
+        lastGameItem = gameItem
+    }
+
     AnimatedVisibility(
-        visible = visible && gameItem != null,
-        enter = fadeIn(),
-        exit = fadeOut()
+        visible = visible && lastGameItem != null,
+        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +
+                scaleIn(initialScale = 0.92f, animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)),
+        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +
+                scaleOut(targetScale = 0.95f, animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow))
     ) {
-        if (gameItem == null) return@AnimatedVisibility
+        val currentItem = lastGameItem ?: return@AnimatedVisibility
 
         Box(
             modifier = Modifier
@@ -97,7 +112,7 @@ fun EmulatorAssistantDialog(
                                 modifier = Modifier.size(24.dp)
                             )
                             Text(
-                                text = "掌機核心指引 • ${gameItem.title}",
+                                text = "掌機核心指引 • ${currentItem.title}",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
@@ -125,13 +140,13 @@ fun EmulatorAssistantDialog(
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = "💡 此遊戲核心尚未安裝 (${gameItem.packageName ?: "獨立執行檔"})",
+                                text = "💡 此遊戲核心尚未安裝 (${currentItem.packageName ?: "獨立執行檔"})",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = AccentGold
                             )
                             Text(
-                                text = when (gameItem.category) {
+                                text = when (currentItem.category) {
                                     com.uyen.launcher.data.model.GameCategory.GALGAME ->
                                         "若要遊玩 Galgame，請在手機安裝 Tyranor 或 Kirikiroid2，並將 .xp3 / .rpa 遊戲資料夾放置於 /sdcard/Games/Galgames/ 目錄中。"
                                     com.uyen.launcher.data.model.GameCategory.RETRO ->
