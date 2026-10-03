@@ -19,7 +19,14 @@ build/
 
 # Gradle files
 .gradle/
+.kotlin/
 buildOutput/
+.kotlin-daemon/
+
+# Python scripts caches
+__pycache__/
+*.py[cod]
+*$py.class
 
 # Local configuration file (contains Android SDK path, personal paths)
 local.properties
