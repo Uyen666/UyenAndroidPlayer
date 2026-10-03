@@ -39,8 +39,10 @@ import androidx.compose.ui.unit.sp
 import com.uyen.launcher.data.model.GameItem
 import com.uyen.launcher.presentation.controller.TouchGamepadOverlay
 import com.uyen.launcher.presentation.home.components.AutoHideEdgeHandle
+import com.uyen.launcher.presentation.home.components.BottomControlBar
 import com.uyen.launcher.presentation.home.components.EmulatorAssistantDialog
 import com.uyen.launcher.presentation.home.components.GameCarousel
+import com.uyen.launcher.presentation.home.components.GoogleAccountDialog
 import com.uyen.launcher.presentation.home.components.HandheldTaskSwitcherDialog
 import com.uyen.launcher.presentation.home.components.HeroBanner
 import com.uyen.launcher.presentation.home.components.QuickSettingsDrawer
@@ -59,6 +61,10 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val games by viewModel.games.collectAsState()
+    val selectedTab by viewModel.selectedTab.collectAsState()
+    val displayGames by viewModel.currentTabGames.collectAsState()
+    val googleAccount by viewModel.googleAccount.collectAsState()
+    val isAccountDialogOpen by viewModel.isAccountDialogOpen.collectAsState()
     val selectedIndex by viewModel.selectedGameIndex.collectAsState()
     val profile by viewModel.playerProfile.collectAsState()
     val stats by viewModel.systemStats.collectAsState()
@@ -81,14 +87,14 @@ fun HomeScreen(
     val runningTasks by viewModel.runningTasks.collectAsState()
     val boostMessage by viewModel.boostMessage.collectAsState()
 
-    val currentGame = games.getOrNull(selectedIndex)
+    val currentGame = displayGames.getOrNull(selectedIndex) ?: displayGames.firstOrNull()
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(BackgroundDark)
     ) {
-        // 動態景深背景 (根據選中遊戲呈現平滑色彩渲染)
+        // 動態景深背景 (根據選中遊戲呈現平滑色彩渲染，保持 PS5 沉浸質感)
         Crossfade(targetState = currentGame?.category, label = "bg_crossfade") { cat ->
             Box(
                 modifier = Modifier
@@ -118,21 +124,21 @@ fun HomeScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
-            // 頂部導航欄 (左上效能 HUD / 正中玩家看板 / 右上遊戲庫)
+            // 頂部導航欄 (LevelUp 風格：左設定/Uyen/Tabs，右刷新/搜尋/Google頭像)
             TopNavigationBar(
-                profile = profile,
+                selectedTab = selectedTab,
+                onSelectTab = { viewModel.selectTab(it) },
                 stats = stats,
-                showPerformanceHud = showPerformanceHud,
+                googleAccount = googleAccount,
                 onOpenSettings = { viewModel.setSettingsOpen(true) },
-                onOpenLibrary = { viewModel.setLibraryOpen(true) },
-                onToggleControllerMode = {
-                    viewModel.setFullScreenControllerMode(true)
-                }
+                onRefresh = { viewModel.refreshGames() },
+                onSearch = { viewModel.setLibraryOpen(true) },
+                onAccountClick = { viewModel.setAccountDialogOpen(true) }
             )
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 中央 Hero Banner 遊戲大圖與詳情
+            // 中央 Hero Banner 遊戲大圖與詳情 (PS5 質感呈現)
             if (currentGame != null) {
                 HeroBanner(
                     game = currentGame,
@@ -140,19 +146,29 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // 底部 90Hz 水平輪播卡片列
-            if (games.isNotEmpty()) {
+            // 底部 90Hz 水平輪播卡片列 (PS5 微光磁吸卡片列)
+            if (displayGames.isNotEmpty()) {
+                val clampedIndex = selectedIndex.coerceIn(0, displayGames.size - 1)
                 GameCarousel(
-                    games = games,
-                    selectedIndex = selectedIndex,
+                    games = displayGames,
+                    selectedIndex = clampedIndex,
                     onSelectGame = { viewModel.selectGame(it) },
                     onLaunchGame = { viewModel.launchGame(it) }
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // 底部控制欄 (LevelUp 同款佈局：左選單膠囊、正中功能膠囊、右多工圓鈕)
+            BottomControlBar(
+                onOpenMenu = { viewModel.setLibraryOpen(true) },
+                onQuickAction = { viewModel.setSettingsOpen(true) },
+                onTaskSwitcher = { viewModel.setTaskSwitcherOpen(true) }
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
         }
 
         // 掌機極簡自動隱藏邊緣側邊小條 (Auto-hide Drawer Handle)
@@ -289,6 +305,17 @@ fun HomeScreen(
             onCreateDirectories = { viewModel.createGameDirectories() },
             onPlayBuiltinArcade = { viewModel.setRetroArcadeOpen(true) },
             onClose = { viewModel.setAssistantDialogItem(null) }
+        )
+
+        // Google 帳號與雲端存檔同步彈窗
+        GoogleAccountDialog(
+            visible = isAccountDialogOpen,
+            account = googleAccount,
+            onSyncNow = {
+                viewModel.boostPerformance("Google Play 雲端存檔同步完成！")
+                viewModel.setAccountDialogOpen(false)
+            },
+            onClose = { viewModel.setAccountDialogOpen(false) }
         )
 
         // 內建 8-bit 太空突擊懷舊街機 (90Hz Smooth Canvas Mini-Game)

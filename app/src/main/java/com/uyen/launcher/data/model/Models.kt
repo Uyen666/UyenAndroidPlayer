@@ -1,5 +1,19 @@
 package com.uyen.launcher.data.model
 
+enum class MainNavTab(val displayName: String) {
+    HOME("首頁"),
+    STREAMING("串流"),
+    GAMES("遊戲")
+}
+
+data class GoogleAccount(
+    val email: String = "linshangkai@gmail.com",
+    val displayName: String = "尚楷",
+    val avatarUrl: String? = null,
+    val isConnected: Boolean = true,
+    val cloudSyncStatus: String = "已同步雲端存檔"
+)
+
 enum class GameCategory(val displayName: String) {
     ALL("全部遊戲"),
     GALGAME("Galgame"),

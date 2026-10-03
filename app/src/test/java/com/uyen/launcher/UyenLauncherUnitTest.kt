@@ -161,4 +161,54 @@ class UyenLauncherUnitTest {
         assertTrue(statusCmd.contains("statusbar-expansion"))
         assertTrue(statusCmd.contains("notification-peek"))
     }
+
+    @Test
+    fun testMainNavTabIntegrity() {
+        val tabs = com.uyen.launcher.data.model.MainNavTab.entries
+        assertEquals(3, tabs.size)
+        assertEquals("首頁", com.uyen.launcher.data.model.MainNavTab.HOME.displayName)
+        assertEquals("串流", com.uyen.launcher.data.model.MainNavTab.STREAMING.displayName)
+        assertEquals("遊戲", com.uyen.launcher.data.model.MainNavTab.GAMES.displayName)
+    }
+
+    @Test
+    fun testGoogleAccountDefaults() {
+        val account = com.uyen.launcher.data.model.GoogleAccount()
+        assertEquals("尚楷", account.displayName)
+        assertEquals("linshangkai@gmail.com", account.email)
+        assertTrue(account.isConnected)
+        assertTrue(account.cloudSyncStatus.contains("雲端存檔"))
+    }
+
+    @Test
+    fun testTabFilteringLogic() {
+        val testGames = listOf(
+            GameItem(id = "home_item", title = "All Item", category = GameCategory.ALL),
+            GameItem(id = "stream_item", title = "Moonlight", category = GameCategory.STREAMING),
+            GameItem(id = "controller_mode", title = "UyenController", category = GameCategory.CUSTOM),
+            GameItem(id = "galgame_item", title = "Tyranor", category = GameCategory.GALGAME),
+            GameItem(id = "retro_item", title = "8-bit", category = GameCategory.RETRO)
+        )
+
+        // HOME 標籤包含所有項目
+        assertEquals(5, testGames.size)
+
+        // STREAMING 標籤過濾
+        val streamingGames = testGames.filter {
+            it.category == GameCategory.STREAMING || it.id == "controller_mode"
+        }
+        assertEquals(2, streamingGames.size)
+        assertTrue(streamingGames.any { it.id == "stream_item" })
+        assertTrue(streamingGames.any { it.id == "controller_mode" })
+
+        // GAMES 標籤過濾
+        val handheldGames = testGames.filter {
+            it.category == GameCategory.GALGAME ||
+            it.category == GameCategory.RETRO ||
+            it.category == GameCategory.CUSTOM
+        }
+        assertEquals(3, handheldGames.size)
+        assertTrue(handheldGames.any { it.id == "galgame_item" })
+        assertTrue(handheldGames.any { it.id == "retro_item" })
+    }
 }

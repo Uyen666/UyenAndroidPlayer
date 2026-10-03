@@ -11,7 +11,10 @@ import com.uyen.launcher.core.hardware.PerformanceMonitor
 import com.uyen.launcher.core.hardware.SystemControlManager
 import com.uyen.launcher.core.kiosk.ConsoleLockManager
 import com.uyen.launcher.core.util.SoundManager
+import com.uyen.launcher.data.model.GameCategory
 import com.uyen.launcher.data.model.GameItem
+import com.uyen.launcher.data.model.GoogleAccount
+import com.uyen.launcher.data.model.MainNavTab
 import com.uyen.launcher.data.model.PlayerProfile
 import com.uyen.launcher.data.model.RunningTask
 import com.uyen.launcher.data.model.SystemStats
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -38,6 +42,32 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("uyen_launcher_ui_prefs", Context.MODE_PRIVATE)
 
     val games: StateFlow<List<GameItem>> = gameRepository.games
+
+    // 頂部導航分頁切換 (首頁 / 串流 / 遊戲)
+    private val _selectedTab = MutableStateFlow(MainNavTab.HOME)
+    val selectedTab: StateFlow<MainNavTab> = _selectedTab.asStateFlow()
+
+    // 依據目前選取的分頁標籤動態過濾遊戲清單
+    val currentTabGames: StateFlow<List<GameItem>> = combine(games, _selectedTab) { allGames, tab ->
+        when (tab) {
+            MainNavTab.HOME -> allGames
+            MainNavTab.STREAMING -> allGames.filter {
+                it.category == GameCategory.STREAMING || it.id == "controller_mode"
+            }
+            MainNavTab.GAMES -> allGames.filter {
+                it.category == GameCategory.GALGAME ||
+                it.category == GameCategory.RETRO ||
+                it.category == GameCategory.CUSTOM
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    // Google 帳號狀態與彈窗
+    private val _googleAccount = MutableStateFlow(GoogleAccount())
+    val googleAccount: StateFlow<GoogleAccount> = _googleAccount.asStateFlow()
+
+    private val _isAccountDialogOpen = MutableStateFlow(false)
+    val isAccountDialogOpen: StateFlow<Boolean> = _isAccountDialogOpen.asStateFlow()
 
     val systemStats: StateFlow<SystemStats> = performanceMonitor.stats
         .stateIn(viewModelScope, SharingStarted.Eagerly, SystemStats())
@@ -99,6 +129,46 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     init {
         performanceMonitor.startMonitoring(viewModelScope)
         viewModelScope.launch {
+            gameRepository.scanInstalledApps()
+            gameRepository.scanLocalRomFiles()
+        }
+    }
+
+    fun selectTab(tab: MainNavTab) {
+        if (_selectedTab.value != tab) {
+            _selectedTab.value = tab
+            _selectedGameIndex.value = 0
+            viewModelScope.launch {
+                soundManager.playClick()
+            }
+        }
+    }
+
+    fun nextTab() {
+        val tabs = MainNavTab.entries
+        val nextIdx = (tabs.indexOf(_selectedTab.value) + 1) % tabs.size
+        selectTab(tabs[nextIdx])
+    }
+
+    fun prevTab() {
+        val tabs = MainNavTab.entries
+        val prevIdx = if (tabs.indexOf(_selectedTab.value) - 1 < 0) tabs.size - 1 else tabs.indexOf(_selectedTab.value) - 1
+        selectTab(tabs[prevIdx])
+    }
+
+    fun setAccountDialogOpen(open: Boolean) {
+        _isAccountDialogOpen.value = open
+        if (open) {
+            viewModelScope.launch {
+                soundManager.playClick()
+            }
+        }
+    }
+
+    fun refreshGames() {
+        viewModelScope.launch {
+            soundManager.playClick()
+            boostPerformance("已重新整理遊戲庫與本機 ROM")
             gameRepository.scanInstalledApps()
             gameRepository.scanLocalRomFiles()
         }
@@ -275,6 +345,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             soundManager.playCardFocusSound()
             _boostMessage.value = "已結束 ${task.title} 後台程序"
             delay(2000)
+            _boostMessage.value = null
+        }
+    }
+
+    fun boostPerformance(message: String) {
+        viewModelScope.launch {
+            _boostMessage.value = message
+            delay(2500)
             _boostMessage.value = null
         }
     }

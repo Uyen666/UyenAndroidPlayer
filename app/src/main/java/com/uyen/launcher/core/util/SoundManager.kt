@@ -34,6 +34,12 @@ class SoundManager(private val context: Context) {
         } catch (_: Exception) {}
     }
 
+    suspend fun playClick() = withContext(Dispatchers.Default) {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 30)
+        } catch (_: Exception) {}
+    }
+
     suspend fun playCancelSound() = withContext(Dispatchers.Default) {
         try {
             toneGenerator?.startTone(ToneGenerator.TONE_PROP_NACK, 50)
