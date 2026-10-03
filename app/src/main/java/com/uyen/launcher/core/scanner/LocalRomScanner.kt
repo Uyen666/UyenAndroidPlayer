@@ -1,132 +1,86 @@
 package com.uyen.launcher.core.scanner
 
-import android.os.Environment
+import android.content.ContentResolver
+import android.net.Uri
+import android.provider.DocumentsContract
 import com.uyen.launcher.data.model.GameCategory
 import com.uyen.launcher.data.model.GameItem
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.File
 
-/**
- * 掌機本地 ROM 與 Galgame 遊戲目錄掃描器
- * 自動偵測 SDCard/Games 中的 .xp3, .rpa, .nes, .gba, .sfc 遊戲檔案
- */
-class LocalRomScanner(baseDir: File? = null) {
+/** Scans only a folder explicitly granted by the user through Android's document picker. */
+class LocalRomScanner(private val contentResolver: ContentResolver) {
 
-    private val gamesRoot: File = File(
-        baseDir ?: try {
-            Environment.getExternalStorageDirectory()
-        } catch (_: Exception) {
-            File("/sdcard")
-        },
-        "Games"
-    )
-    private val galgameDir = File(gamesRoot, "Galgames")
-    private val romsDir = File(gamesRoot, "ROMs")
-    private val customDir = File(gamesRoot, "Custom")
+    fun scan(treeUri: Uri): List<GameItem> {
+        val rootId = runCatching { DocumentsContract.getTreeDocumentId(treeUri) }.getOrNull() ?: return emptyList()
+        val pending = ArrayDeque<String>().apply { add(rootId) }
+        val visited = mutableSetOf<String>()
+        val found = mutableListOf<GameItem>()
+        var inspectedDocuments = 0
 
-    /**
-     * 初始化掌機標準遊戲目錄架構
-     */
-    fun ensureDirectoryStructure(): Boolean {
-        return try {
-            if (!gamesRoot.exists()) gamesRoot.mkdirs()
-            if (!galgameDir.exists()) galgameDir.mkdirs()
-            if (!romsDir.exists()) romsDir.mkdirs()
-            if (!customDir.exists()) customDir.mkdirs()
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    /**
-     * 掃描本地遊戲檔案並轉換為 GameItem 清單
-     */
-    suspend fun scanLocalGames(): List<GameItem> = withContext(Dispatchers.IO) {
-        val foundGames = mutableListOf<GameItem>()
-        ensureDirectoryStructure()
-
-        val directoriesToScan = listOf(
-            galgameDir,
-            romsDir,
-            customDir,
-            File(Environment.getExternalStorageDirectory(), "Download")
-        )
-
-        directoriesToScan.forEach { dir ->
-            if (dir.exists() && dir.isDirectory) {
-                dir.listFiles()?.forEach { file ->
-                    val extension = file.extension.lowercase()
-                    val itemName = file.nameWithoutExtension
-
-                    when (extension) {
-                        // Galgame 格式 (吉里吉里 / Ren'Py / Tyranor)
-                        "xp3", "rpa", "ons" -> {
-                            foundGames.add(
-                                GameItem(
-                                    id = "local_gal_${file.name.hashCode()}",
-                                    title = itemName,
-                                    subtitle = "Galgame 本地映像檔 (${file.length() / (1024 * 1024)} MB)",
-                                    category = GameCategory.GALGAME,
-                                    packageName = "com.tyranor", // 預設優先以 Tyranor 引擎開啓
-                                    tags = listOf("本地 Galgame", extension.uppercase()),
-                                    playTimeHours = 0f,
-                                    isFavorite = false
-                                )
-                            )
-                        }
-
-                        // 復古懷舊 ROM (FC 紅白機 / GBA / SFC)
-                        "nes", "fc" -> {
-                            foundGames.add(
-                                GameItem(
-                                    id = "local_nes_${file.name.hashCode()}",
-                                    title = itemName,
-                                    subtitle = "FC/NES 8-bit ROM (${file.length() / 1024} KB)",
-                                    category = GameCategory.RETRO,
-                                    packageName = "com.retroarch",
-                                    tags = listOf("8-bit", "NES", "本地 ROM"),
-                                    playTimeHours = 0f,
-                                    isFavorite = false
-                                )
-                            )
-                        }
-
-                        "gba" -> {
-                            foundGames.add(
-                                GameItem(
-                                    id = "local_gba_${file.name.hashCode()}",
-                                    title = itemName,
-                                    subtitle = "Game Boy Advance ROM (${file.length() / (1024 * 1024)} MB)",
-                                    category = GameCategory.RETRO,
-                                    packageName = "com.retroarch",
-                                    tags = listOf("GBA", "掌機", "本地 ROM"),
-                                    playTimeHours = 0f,
-                                    isFavorite = false
-                                )
-                            )
-                        }
-
-                        "sfc", "smc" -> {
-                            foundGames.add(
-                                GameItem(
-                                    id = "local_sfc_${file.name.hashCode()}",
-                                    title = itemName,
-                                    subtitle = "Super Famicom ROM (${file.length() / 1024} KB)",
-                                    category = GameCategory.RETRO,
-                                    packageName = "com.retroarch",
-                                    tags = listOf("16-bit", "SFC", "本地 ROM"),
-                                    playTimeHours = 0f,
-                                    isFavorite = false
-                                )
-                            )
+        while (pending.isNotEmpty() && inspectedDocuments < MAX_DOCUMENTS) {
+            val parentId = pending.removeFirst()
+            if (!visited.add(parentId)) continue
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentId)
+            runCatching {
+                contentResolver.query(childrenUri, PROJECTION, null, null, null)?.use { cursor ->
+                    val idIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                    val nameIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                    val mimeIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
+                    val sizeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE)
+                    while (cursor.moveToNext()) {
+                        if (inspectedDocuments >= MAX_DOCUMENTS) break
+                        inspectedDocuments++
+                        val documentId = cursor.getString(idIndex) ?: continue
+                        val name = cursor.getString(nameIndex) ?: continue
+                        val mimeType = cursor.getString(mimeIndex)
+                        if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
+                            pending.add(documentId)
+                        } else {
+                            toGameItem(treeUri, documentId, name, sizeIndex.takeIf { it >= 0 }?.let(cursor::getLong))
+                                ?.let(found::add)
                         }
                     }
                 }
             }
         }
+        return found.sortedBy(GameItem::title)
+    }
 
-        foundGames
+    private fun toGameItem(treeUri: Uri, documentId: String, fileName: String, size: Long?): GameItem? {
+        val extension = fileName.substringAfterLast('.', "").lowercase()
+        val category = categoryForExtension(extension) ?: return null
+        val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
+        val sizeLabel = size?.takeIf { it >= 0 }?.let { " • ${it / (1024 * 1024)} MB" }.orEmpty()
+        val mimeType = when (extension) {
+            "nes", "fc" -> "application/x-nes-rom"
+            "gba" -> "application/x-gba-rom"
+            "sfc", "smc" -> "application/x-snes-rom"
+            "xp3" -> "application/x-xp3"
+            else -> "application/octet-stream"
+        }
+        return GameItem(
+            id = "local:${uri}",
+            title = fileName.substringBeforeLast('.', fileName),
+            subtitle = "本機遊戲檔$sizeLabel",
+            category = category,
+            launchIntentUri = uri.toString(),
+            mimeType = mimeType,
+            tags = listOf("本機遊戲", extension.uppercase())
+        )
+    }
+
+    companion object {
+        fun categoryForExtension(extension: String): GameCategory? = when (extension.lowercase()) {
+            "xp3", "rpa", "ons" -> GameCategory.GALGAME
+            "nes", "fc", "gba", "sfc", "smc" -> GameCategory.RETRO
+            else -> null
+        }
+
+        const val MAX_DOCUMENTS = 20_000
+        val PROJECTION = arrayOf(
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE,
+            DocumentsContract.Document.COLUMN_SIZE
+        )
     }
 }

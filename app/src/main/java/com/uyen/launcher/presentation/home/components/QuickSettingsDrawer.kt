@@ -4,8 +4,10 @@ import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
@@ -44,13 +46,18 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.uyen.launcher.data.model.SystemStats
@@ -99,8 +106,12 @@ fun QuickSettingsDrawer(
     onOpenControllerMode: () -> Unit,
     onOpenTaskSwitcher: () -> Unit,
     onCleanRam: () -> Unit,
+    ramCleanMessage: String? = null,
+    onExitLauncher: () -> Unit,
     onClose: () -> Unit
 ) {
+    var showExitConfirmDialog by remember { mutableStateOf(false) }
+
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(),
@@ -298,10 +309,10 @@ fun QuickSettingsDrawer(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // 📊 顯示左上角效能 HUD
+                    // 📊 顯示中央上方效能 HUD
                     ToggleCard(
-                        title = "📊 左上角效能 HUD (FPS/溫度)",
-                        description = "關閉後完全隱藏左上角狀態，享受 100% 純淨海報視覺",
+                        title = "📊 效能監控 HUD (中央頂部)",
+                        description = "在螢幕中央上方顯示極簡效能膠囊列 (FPS / 溫度 / RAM / 電量)",
                         checked = showPerformanceHud,
                         onCheckedChange = onTogglePerformanceHud
                     )
@@ -366,10 +377,10 @@ fun QuickSettingsDrawer(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        HudMiniCard(label = "FPS", value = "${stats.fps}", sub = "90Hz", color = AccentGreen, modifier = Modifier.weight(1f))
-                        HudMiniCard(label = "溫度", value = "${stats.batteryTempCelsius}°C", sub = if (stats.isCharging) "充電中" else "電池", color = AccentGold, modifier = Modifier.weight(1f))
+                        HudMiniCard(label = "啟動器 FPS", value = "${stats.fps}", sub = "畫面影格", color = AccentGreen, modifier = Modifier.weight(1f))
+                        HudMiniCard(label = "電池溫度", value = "${"%.1f".format(stats.batteryTempCelsius)}°C", sub = if (stats.isCharging) "充電中" else "未充電", color = AccentGold, modifier = Modifier.weight(1f))
                         HudMiniCard(label = "RAM", value = "${stats.ramUsedMb}M", sub = "/ ${stats.ramTotalMb}M", color = Ps5Blue, modifier = Modifier.weight(1f))
-                        HudMiniCard(label = "電量", value = "${stats.batteryPercent}%", sub = "5000mAh", color = AccentGreen, modifier = Modifier.weight(1f))
+                        HudMiniCard(label = "電量", value = "${stats.batteryPercent}%", sub = if (stats.isCharging) "充電中" else "電池", color = AccentGreen, modifier = Modifier.weight(1f))
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -403,7 +414,34 @@ fun QuickSettingsDrawer(
                                 .height(42.dp)
                                 .border(1.dp, AccentGreen.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                         ) {
-                            Text(text = "⚡ 釋放記憶體", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "⚡ 釋放後台 RAM", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = ramCleanMessage != null,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        ramCleanMessage?.let { msg ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(AccentGreen.copy(alpha = 0.15f))
+                                    .border(1.dp, AccentGreen.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = msg,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AccentGreen,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
 
@@ -424,7 +462,111 @@ fun QuickSettingsDrawer(
                         Text(text = "🎮 進入 UyenController PC 手柄模式", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // 5. 系統退出 (唯一可退出 Launcher 的入口)
+                    Text(
+                        text = "系統控制與退出",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFEF4444)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0x26EF4444))
+                            .border(1.dp, Color(0x66EF4444), RoundedCornerShape(12.dp))
+                            .clickable { showExitConfirmDialog = true }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "🚪 退出 Uyen 啟動器",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFEF4444)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "解除鎖定並返回 Android 原生系統桌面，停止掌機常駐服務",
+                                fontSize = 10.sp,
+                                color = Color.White.copy(alpha = 0.7f),
+                                lineHeight = 14.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
+
+            // 防誤觸退出確認彈窗 (Compose 原生層渲染，同時相容 Activity 與 Service WindowManager 懸浮層)
+            if (showExitConfirmDialog) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { showExitConfirmDialog = false }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .width(340.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF161B26))
+                            .border(1.dp, Color(0xFFEF4444).copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {}
+                            )
+                            .padding(20.dp)
+                    ) {
+                        Text(
+                            text = "🚪 確定要退出 UyenLauncher？",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "退出後將解除掌機鎖定、關閉邊緣懸浮導航條與效能 HUD，並返回系統預設桌面。\n\n若您已將 UyenLauncher 設為預設桌面，系統將會引導您切換桌面應用。",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            lineHeight = 17.sp
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = { showExitConfirmDialog = false }) {
+                                Text("取消", color = Color.White.copy(alpha = 0.6f))
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    showExitConfirmDialog = false
+                                    onClose()
+                                    onExitLauncher()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("確認退出", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -472,6 +614,7 @@ private fun ToggleCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(SurfaceCard)
+            .clickable { onCheckedChange(!checked) }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -494,7 +637,7 @@ private fun ToggleCard(
         Spacer(modifier = Modifier.width(8.dp))
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = null,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
                 checkedTrackColor = AccentGold

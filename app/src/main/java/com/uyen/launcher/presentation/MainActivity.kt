@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.uyen.launcher.core.kiosk.ConsoleLockManager
+import com.uyen.launcher.core.service.GlobalConsoleEdgeService
 import com.uyen.launcher.core.util.SystemBarUtil
 import com.uyen.launcher.presentation.home.HomeScreen
 import com.uyen.launcher.presentation.home.HomeViewModel
@@ -33,7 +34,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             UyenTheme {
-                var showBootAnimation by remember { mutableStateOf(true) }
+                val openSettingsDirectly = intent.getBooleanExtra("OPEN_SETTINGS", false)
+                var showBootAnimation by remember { mutableStateOf(!openSettingsDirectly) }
 
                 AnimatedVisibility(
                     visible = showBootAnimation,
@@ -59,10 +61,12 @@ class MainActivity : ComponentActivity() {
         // 於 View 結構初始化後安全隱藏系統列
         SystemBarUtil.hideSystemBars(this)
         com.uyen.launcher.core.service.GlobalConsoleEdgeService.start(this)
+        handleIntent(intent)
     }
 
     override fun onResume() {
         super.onResume()
+        homeViewModel.onLauncherResumed()
         SystemBarUtil.hideSystemBars(this)
         com.uyen.launcher.core.service.GlobalConsoleEdgeService.start(this)
         homeViewModel.refreshGoogleAccounts()
@@ -79,8 +83,24 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.getBooleanExtra("OPEN_TASK_SWITCHER", false)) {
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: android.content.Intent?) {
+        if (intent == null) return
+        if (intent.getBooleanExtra("EXIT_LAUNCHER", false)) {
+            homeViewModel.exitLauncher(this)
+            return
+        }
+        if (intent.getBooleanExtra("OPEN_OVERLAY_SETTINGS", false)) {
+            GlobalConsoleEdgeService.showSettings(this)
+            return
+        } else if (intent.getBooleanExtra("OPEN_TASK_SWITCHER", false)) {
             homeViewModel.setTaskSwitcherOpen(true)
+        } else if (intent.getBooleanExtra("OPEN_SETTINGS", false)) {
+            homeViewModel.setSettingsOpen(true)
+        } else if (intent.getBooleanExtra("OPEN_CONTROLLER_MODE", false)) {
+            homeViewModel.setFullScreenControllerMode(true)
         } else {
             homeViewModel.handleHome()
         }

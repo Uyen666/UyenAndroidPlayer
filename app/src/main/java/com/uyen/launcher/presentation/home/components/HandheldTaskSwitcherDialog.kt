@@ -62,14 +62,14 @@ import com.uyen.launcher.presentation.theme.TextSecondary
 
 /**
  * 掌機多工任務管理視窗 (Handheld Task Switcher)
- * 真實管理當前啟動的後台遊戲與應用程序
+ * 顯示此啟動器最近開啟的項目；Android 不允許一般 App 任意查詢或結束其他 App。
  */
 @Composable
 fun HandheldTaskSwitcherDialog(
     visible: Boolean,
     runningTasks: List<RunningTask>,
     onSwitchToTask: (RunningTask) -> Unit,
-    onKillTask: (RunningTask) -> Unit,
+    onRemoveRecent: (RunningTask) -> Unit,
     onCleanAll: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -119,7 +119,7 @@ fun HandheldTaskSwitcherDialog(
                             color = TextPrimary
                         )
                         Text(
-                            text = if (runningTasks.isEmpty()) "後台已清空" else "目前有 ${runningTasks.size} 個遊戲後台運行中",
+                            text = if (runningTasks.isEmpty()) "尚無最近啟動項目" else "最近啟動 ${runningTasks.size} 個項目",
                             fontSize = 12.sp,
                             color = TextSecondary
                         )
@@ -142,7 +142,7 @@ fun HandheldTaskSwitcherDialog(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "一鍵結束全部", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "清除紀錄", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -159,7 +159,7 @@ fun HandheldTaskSwitcherDialog(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 if (runningTasks.isEmpty()) {
-                    // 空狀態：記憶體已清空
+                    // 空狀態：沒有最近啟動紀錄
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -175,14 +175,14 @@ fun HandheldTaskSwitcherDialog(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "後台已無任何運行程序",
+                                text = "尚無最近啟動紀錄",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "系統 RAM 與 GPU 處於最高電競可用狀態",
+                                text = "從遊戲庫開啟項目後，這裡會顯示最近使用紀錄。",
                                 fontSize = 12.sp,
                                 color = TextMuted,
                                 textAlign = TextAlign.Center
@@ -190,7 +190,7 @@ fun HandheldTaskSwitcherDialog(
                         }
                     }
                 } else {
-                    // 真實運行任務列表
+                    // 最近啟動項目列表
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -235,7 +235,7 @@ fun HandheldTaskSwitcherDialog(
                                             color = TextPrimary
                                         )
                                         Text(
-                                            text = "${task.packageName} • 記憶體: ~${task.memoryUsageMb} MB",
+                                            text = task.packageName,
                                             fontSize = 11.sp,
                                             color = AccentGold
                                         )
@@ -253,15 +253,15 @@ fun HandheldTaskSwitcherDialog(
                                     ) {
                                         Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("切換", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text("開啟", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
 
                                     IconButton(
-                                        onClick = { onKillTask(task) }
+                                        onClick = { onRemoveRecent(task) }
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Delete,
-                                            contentDescription = "結束程序",
+                                            contentDescription = "移除紀錄",
                                             tint = Color(0xFFEF4444)
                                         )
                                     }

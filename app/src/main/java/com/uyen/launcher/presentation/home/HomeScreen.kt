@@ -74,6 +74,7 @@ import com.uyen.launcher.presentation.home.components.HeroBanner
 import com.uyen.launcher.presentation.home.components.HomeCardManagerDialog
 import com.uyen.launcher.presentation.home.components.QuickSettingsDrawer
 import com.uyen.launcher.presentation.home.components.SteamLibraryDialog
+import com.uyen.launcher.presentation.home.components.TopCenterPerformanceHud
 import com.uyen.launcher.presentation.home.components.TopNavigationBar
 import com.uyen.launcher.presentation.minigame.RetroArcadeScreen
 import com.uyen.launcher.presentation.theme.AccentGreen
@@ -142,15 +143,33 @@ fun HomeScreen(
         }
     }
 
+    // Android 原生 Google 帳號選取器 Launcher (免設定 OAuth、原生選取設備 Google 帳號)
+    val chooseAccountLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val email = result.data?.getStringExtra(android.accounts.AccountManager.KEY_ACCOUNT_NAME)
+        if (!email.isNullOrBlank()) {
+            viewModel.onGoogleAccountSelected(email)
+        }
+    }
+
     // Google Sign-In 官方登入與獲取頭像照片 Launcher
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         viewModel.handleGoogleSignInResult(result.data) {
             try {
+                chooseAccountLauncher.launch(viewModel.getChooseAccountIntent())
+            } catch (_: Exception) {
                 photoPickerLauncher.launch("image/*")
-            } catch (_: Exception) {}
+            }
         }
+    }
+
+    val gamesFolderPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        uri?.let(viewModel::setGamesFolder)
     }
 
     // 監聽懸浮窗權限與生命週期
@@ -302,6 +321,16 @@ fun HomeScreen(
                 }
         )
 
+        // 螢幕中央頂部微型效能 HUD 膠囊列 (若未授權全局懸浮窗，則在啟動器內部渲染)
+        TopCenterPerformanceHud(
+            visible = showPerformanceHud && !hasOverlayPermission,
+            stats = stats,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 10.dp)
+        )
+
         // 電競加速 / 系統通知浮動膠囊 (Toast Banner)
         AnimatedVisibility(
             visible = boostMessage != null,
@@ -350,7 +379,7 @@ fun HomeScreen(
                 )
                 viewModel.launchGame(game)
             },
-            onKillTask = { viewModel.killTask(it) },
+            onRemoveRecent = { viewModel.removeRecentLaunch(it) },
             onCleanAll = {
                 viewModel.cleanMemory()
                 viewModel.setTaskSwitcherOpen(false)
@@ -393,6 +422,8 @@ fun HomeScreen(
             onOpenControllerMode = { viewModel.setFullScreenControllerMode(true) },
             onOpenTaskSwitcher = { viewModel.setTaskSwitcherOpen(true) },
             onCleanRam = { viewModel.cleanMemory() },
+            ramCleanMessage = boostMessage,
+            onExitLauncher = { viewModel.exitLauncher(context as? Activity) },
             onClose = { viewModel.setSettingsOpen(false) }
         )
 
@@ -408,7 +439,7 @@ fun HomeScreen(
         EmulatorAssistantDialog(
             visible = assistantDialogItem != null,
             gameItem = assistantDialogItem,
-            onCreateDirectories = { viewModel.createGameDirectories() },
+            onChooseGamesFolder = { gamesFolderPicker.launch(null) },
             onPlayBuiltinArcade = { viewModel.setRetroArcadeOpen(true) },
             onClose = { viewModel.setAssistantDialogItem(null) }
         )
@@ -423,9 +454,13 @@ fun HomeScreen(
             onAddAccount = { viewModel.openAddGoogleAccount() },
             onSyncGooglePhoto = {
                 try {
-                    googleSignInLauncher.launch(viewModel.getGoogleSignInIntent())
+                    chooseAccountLauncher.launch(viewModel.getChooseAccountIntent())
                 } catch (_: Exception) {
-                    viewModel.openManageSystemAccounts()
+                    try {
+                        googleSignInLauncher.launch(viewModel.getGoogleSignInIntent())
+                    } catch (_: Exception) {
+                        viewModel.openAddGoogleAccount()
+                    }
                 }
             },
             onPickCustomPhoto = {
@@ -434,9 +469,11 @@ fun HomeScreen(
             onClearCustomPhoto = {
                 viewModel.updateCustomAvatar(null)
             },
+            onLogoutAccount = {
+                viewModel.logoutGoogleAccount()
+            },
             onSyncNow = {
-                viewModel.boostPerformance("Google Play 雲端存檔同步完成！")
-                viewModel.refreshGoogleAccounts()
+                viewModel.boostPerformance("此版本尚未提供雲端存檔同步；遊戲資料保存在本機")
             },
             onClose = { viewModel.setAccountDialogOpen(false) }
         )
@@ -457,6 +494,7 @@ fun HomeScreen(
                 game = actionGame,
                 resolvedBanner = resolvedBanners[actionGame.id],
                 isPinnedToHome = viewModel.isGamePinned(actionGame.id),
+                onToggleFavorite = { viewModel.toggleFavorite(actionGame.id) },
                 isCustomBanner = viewModel.isCustomBanner(actionGame.id),
                 onPickCustomBanner = {
                     pendingBannerGameId = actionGame.id

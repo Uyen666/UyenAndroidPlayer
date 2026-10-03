@@ -70,6 +70,7 @@ fun GameActionMenuDialog(
     game: GameItem,
     resolvedBanner: ResolvedBanner?,
     isPinnedToHome: Boolean,
+    onToggleFavorite: () -> Unit,
     isCustomBanner: Boolean,
     onPickCustomBanner: () -> Unit,
     onResetCustomBanner: () -> Unit,
@@ -223,6 +224,21 @@ fun GameActionMenuDialog(
 
                 // 操作按鈕列表
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    OutlinedButton(
+                        onClick = onToggleFavorite,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().height(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = if (game.isFavorite) AccentGold else TextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (game.isFavorite) "從收藏移除" else "加入收藏", fontSize = 12.5.sp)
+                    }
+
                     // 1. 從相簿更換自訂海報
                     Button(
                         onClick = {

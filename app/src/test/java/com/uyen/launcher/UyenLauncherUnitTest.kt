@@ -27,10 +27,12 @@ class UyenLauncherUnitTest {
     @Test
     fun testSystemStatsDefaults() {
         val stats = SystemStats()
-        assertEquals(90, stats.fps)
-        assertEquals(90, stats.refreshRateFps)
-        assertTrue(stats.batteryPercent in 0..100)
-        assertTrue(stats.batteryTempCelsius > 0)
+        assertEquals(0, stats.fps)
+        assertEquals(0L, stats.ramUsedMb)
+        assertEquals(0L, stats.ramTotalMb)
+        assertEquals(0, stats.batteryPercent)
+        assertEquals(0f, stats.batteryTempCelsius, 0.001f)
+        assertFalse(stats.isCharging)
     }
 
     @Test
@@ -95,13 +97,11 @@ class UyenLauncherUnitTest {
         val task = com.uyen.launcher.data.model.RunningTask(
             id = "galgame_tyranor",
             title = "Tyranor",
-            packageName = "com.tyranor",
-            memoryUsageMb = 120
+            packageName = "com.tyranor"
         )
 
         assertEquals("galgame_tyranor", task.id)
         assertEquals("com.tyranor", task.packageName)
-        assertEquals(120L, task.memoryUsageMb)
 
         val taskList = mutableListOf(task)
         assertEquals(1, taskList.size)
@@ -131,12 +131,17 @@ class UyenLauncherUnitTest {
     }
 
     @Test
-    fun testLocalRomScannerDirectoryStructure() {
-        val testBase = java.io.File(System.getProperty("java.io.tmpdir"), "uyen_test_dir")
-        val scanner = com.uyen.launcher.core.scanner.LocalRomScanner(baseDir = testBase)
-        assertNotNull(scanner)
-        assertTrue(scanner.ensureDirectoryStructure())
-        testBase.deleteRecursively()
+    fun testLocalRomScannerCategoryExtensions() {
+        assertEquals(GameCategory.GALGAME, com.uyen.launcher.core.scanner.LocalRomScanner.categoryForExtension("xp3"))
+        assertEquals(GameCategory.GALGAME, com.uyen.launcher.core.scanner.LocalRomScanner.categoryForExtension("rpa"))
+        assertEquals(GameCategory.GALGAME, com.uyen.launcher.core.scanner.LocalRomScanner.categoryForExtension("ons"))
+        assertEquals(GameCategory.RETRO, com.uyen.launcher.core.scanner.LocalRomScanner.categoryForExtension("nes"))
+        assertEquals(GameCategory.RETRO, com.uyen.launcher.core.scanner.LocalRomScanner.categoryForExtension("fc"))
+        assertEquals(GameCategory.RETRO, com.uyen.launcher.core.scanner.LocalRomScanner.categoryForExtension("gba"))
+        assertEquals(GameCategory.RETRO, com.uyen.launcher.core.scanner.LocalRomScanner.categoryForExtension("sfc"))
+        assertEquals(GameCategory.RETRO, com.uyen.launcher.core.scanner.LocalRomScanner.categoryForExtension("smc"))
+        org.junit.Assert.assertNull(com.uyen.launcher.core.scanner.LocalRomScanner.categoryForExtension("txt"))
+        org.junit.Assert.assertNull(com.uyen.launcher.core.scanner.LocalRomScanner.categoryForExtension("apk"))
     }
 
     @Test
@@ -174,10 +179,10 @@ class UyenLauncherUnitTest {
     @Test
     fun testGoogleAccountDefaults() {
         val account = com.uyen.launcher.data.model.GoogleAccount()
-        assertEquals("尚楷", account.displayName)
-        assertEquals("linshangkai@gmail.com", account.email)
-        assertTrue(account.isConnected)
-        assertTrue(account.cloudSyncStatus.contains("雲端存檔"))
+        assertEquals("訪客", account.displayName)
+        assertEquals("", account.email)
+        assertFalse(account.isConnected)
+        assertTrue(account.dataStatusMessage.contains("本機"))
     }
 
     @Test
@@ -214,7 +219,7 @@ class UyenLauncherUnitTest {
 
     @Test
     fun testGoogleAccountCustomDisplay() {
-        val email = "rock941103@gmail.com"
+        val email = "player@example.com"
         val prefix = email.substringBefore("@")
         val displayName = prefix.replaceFirstChar { it.uppercase() }
         val account = com.uyen.launcher.data.model.GoogleAccount(
@@ -223,8 +228,8 @@ class UyenLauncherUnitTest {
             isConnected = true
         )
 
-        assertEquals("rock941103@gmail.com", account.email)
-        assertEquals("Rock941103", account.displayName)
+        assertEquals("player@example.com", account.email)
+        assertEquals("Player", account.displayName)
         assertTrue(account.isConnected)
     }
 
@@ -236,5 +241,34 @@ class UyenLauncherUnitTest {
 
         val homeHandled = com.uyen.launcher.core.service.UyenConsoleAccessibilityService.performHome()
         assertFalse(homeHandled)
+    }
+
+    @Test
+    fun testCleanRamResultCalculation() {
+        // 模擬真實釋放場景
+        val resultFreed = com.uyen.launcher.core.hardware.CleanRamResult(
+            freedMb = 250,
+            availBeforeMb = 1000,
+            availAfterMb = 1250,
+            totalMb = 3700,
+            usedMb = 2450,
+            displayMessage = "⚡ 釋放成功！已清出 250MB 記憶體 (可用 RAM: 1250MB)"
+        )
+        assertEquals(250, resultFreed.freedMb)
+        assertEquals(1250, resultFreed.availAfterMb)
+        assertTrue(resultFreed.displayMessage.contains("250MB"))
+
+        // 模擬已達最佳狀態場景 (拒絕重複展示假數字)
+        val resultOptimal = com.uyen.launcher.core.hardware.CleanRamResult(
+            freedMb = 0,
+            availBeforeMb = 1250,
+            availAfterMb = 1250,
+            totalMb = 3700,
+            usedMb = 2450,
+            displayMessage = "⚡ 記憶體已達最佳狀態！目前可用 RAM: 1250MB"
+        )
+        assertEquals(0, resultOptimal.freedMb)
+        assertTrue(resultOptimal.displayMessage.contains("最佳狀態"))
+        assertFalse(resultOptimal.displayMessage.contains("快取程序"))
     }
 }

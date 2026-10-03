@@ -29,7 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Sync
@@ -73,6 +72,7 @@ fun GoogleAccountDialog(
     onSyncGooglePhoto: () -> Unit,
     onPickCustomPhoto: () -> Unit,
     onClearCustomPhoto: () -> Unit,
+    onLogoutAccount: () -> Unit = {},
     onSyncNow: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -298,41 +298,56 @@ fun GoogleAccountDialog(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Sync,
-                                    contentDescription = "雲端同步",
+                                    contentDescription = "Google 登入",
                                     modifier = Modifier.size(13.dp),
                                     tint = TextSecondary
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = "Google 雲端登入同步", fontSize = 11.sp, color = TextPrimary)
+                                Text(
+                                    text = if (currentAccount.isConnected) "切換 Google 帳號" else "選擇 Google 帳號登入",
+                                    fontSize = 11.sp,
+                                    color = TextPrimary
+                                )
+                            }
+
+                            if (currentAccount.isConnected) {
+                                OutlinedButton(
+                                    onClick = onLogoutAccount,
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.width(76.dp)
+                                ) {
+                                    Text(text = "登出", fontSize = 11.sp, color = TextSecondary)
+                                }
                             }
 
                             if (!currentAccount.avatarUrl.isNullOrEmpty()) {
                                 OutlinedButton(
                                     onClick = onClearCustomPhoto,
                                     shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.width(76.dp)
+                                    modifier = Modifier.width(80.dp)
                                 ) {
-                                    Text(text = "重設", fontSize = 11.sp, color = Color(0xFFEF4444))
+                                    Text(text = "重設相片", fontSize = 11.sp, color = Color(0xFFEF4444))
                                 }
                             }
                         }
                     }
 
                     // 設備上其他已發現的 Google 帳號列表 (若有)
-                    if (availableAccounts.size > 1) {
+                    val switchableAccounts = availableAccounts.filter { it.email.isNotBlank() && it.email != currentAccount.email }
+                    if (switchableAccounts.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "切換設備其他 Google 帳號：",
+                            text = if (currentAccount.isConnected) "切換設備其他 Google 帳號：" else "點擊直接連結設備 Google 帳號：",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = TextSecondary
+                            color = AccentGold
                         )
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Column(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            availableAccounts.filter { it.email != currentAccount.email }.forEach { otherAcc ->
+                            switchableAccounts.forEach { otherAcc ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -346,27 +361,44 @@ fun GoogleAccountDialog(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Box(
                                             modifier = Modifier
-                                                .size(24.dp)
+                                                .size(26.dp)
                                                 .clip(CircleShape)
                                                 .background(Color(0xFF334155)),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = otherAcc.displayName.take(1).uppercase(),
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
-                                            )
+                                            if (!otherAcc.avatarUrl.isNullOrEmpty()) {
+                                                coil.compose.AsyncImage(
+                                                    model = otherAcc.avatarUrl,
+                                                    contentDescription = otherAcc.displayName,
+                                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = otherAcc.displayName.take(1).uppercase(),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White
+                                                )
+                                            }
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = otherAcc.email,
-                                            fontSize = 12.sp,
-                                            color = TextPrimary
-                                        )
+                                        Column {
+                                            Text(
+                                                text = otherAcc.displayName,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TextPrimary
+                                            )
+                                            Text(
+                                                text = otherAcc.email,
+                                                fontSize = 10.sp,
+                                                color = TextMuted
+                                            )
+                                        }
                                     }
                                     Text(
-                                        text = "切換",
+                                        text = if (currentAccount.isConnected) "切換" else "連結",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Ps5Blue
@@ -378,7 +410,7 @@ fun GoogleAccountDialog(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // 雲端存檔狀態膠囊
+                    // 本機儲存狀態
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -388,16 +420,16 @@ fun GoogleAccountDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CloudDone,
-                            contentDescription = "雲端同步",
-                            tint = AccentGreen,
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "本機資料",
+                            tint = AccentGold,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = currentAccount.cloudSyncStatus,
+                            text = currentAccount.dataStatusMessage,
                             fontSize = 11.sp,
-                            color = AccentGreen,
+                            color = AccentGold,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -441,7 +473,7 @@ fun GoogleAccountDialog(
                             Text(text = "新增帳號", fontSize = 11.sp, color = AccentGold)
                         }
 
-                        // 3. 立即同步
+                        // 3. 顯示目前同步支援狀態
                         Button(
                             onClick = onSyncNow,
                             shape = RoundedCornerShape(10.dp),
@@ -450,11 +482,11 @@ fun GoogleAccountDialog(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Sync,
-                                contentDescription = "立即同步",
+                                contentDescription = "同步狀態",
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "同步存檔", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "同步狀態", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

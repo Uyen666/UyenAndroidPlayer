@@ -1,133 +1,45 @@
-# 🎮 UyenLauncher (UyenAndroidPlayer)
+# UyenLauncher
 
-> **專為 Android 手機打造的掌機化系統啟動器**  
-> 融合 **PS5 絲滑主介面**、**Steam OS 擴充體驗**、**Galgame / 復古遊戲中心**、**PC 虛擬手柄 (UyenController)** 與 **低延遲主機串流**。
+UyenLauncher 是以 Kotlin、Jetpack Compose 建置的 Android 橫向遊戲啟動器。它提供掌機風格首頁、已安裝 App 遊戲庫、本機遊戲檔案匯入、系統控制抽屜、內建 8-bit 小遊戲，以及選用的 Kiosk 與邊緣快捷列。
 
----
+## 功能
 
-## 🌟 核心特色 (Key Features)
+- **遊戲首頁與遊戲庫**：列出內建功能、可啟動的已安裝 App，以及使用者選取資料夾中的 `.xp3`、`.rpa`、`.ons`、`.nes`、`.fc`、`.gba`、`.sfc` 和 `.smc` 檔案。
+- **本機資料**：首頁釘選、收藏、遊戲海報設定與實際啟動遊玩時間保存在 App 私有偏好資料中。
+- **資料夾匯入**：使用 Android 系統文件選擇器授權遊戲資料夾；啟動器只讀取使用者選取的資料夾，不要求整機儲存空間存取權。
+- **掌機介面**：Compose 遊戲卡片、遊戲庫、媒體音量與視窗亮度控制，以及電池與記憶體資訊。
+- **內建街機與控制器畫面**：離線 8-bit 小遊戲和觸控手柄介面。
+- **選用系統整合**：Kiosk 鎖定與跨 App 邊緣快捷列需要使用者授權；部分鎖定能力需要 Device Owner 設定及相容裝置。
+- **Google 登入**：用於顯示目前登入的 Google 個人資料與頭像。遊戲庫和遊玩紀錄目前保存在本機，尚未提供雲端存檔同步。
 
-- **🎬 Steam OS 開機與喚醒動畫 (Boot Video)**
-  - 支援高畫質開機/解鎖影片動畫（支援自訂 MP4/WEBM 影片）。
-  - 任意觸控螢幕立即無縫淡出跳過（Instant Tap-to-Skip），不拖沓遊戲啟動節奏。
+## 架構
 
-- **✨ PS5 沉浸式主介面 (PS5-Style Deck)**
-  - **90Hz 原生高刷新率支援**：搭配 Android Jetpack Compose 宣告式物理動畫引擎。
-  - **下排遊戲卡片列**：具備磁吸輪播（Snap Carousel）、焦點放大（Scale 1.15x）、光澤高光與自訂反饋音效。
-  - **中央 Hero Banner**：與卡片列即時聯動的高清封面海報、Logo、遊戲時數與一鍵 Play 大按鈕。
-  - **背景動態景深**：選中遊戲時全螢幕平滑淡入該遊戲的高斯模糊環境壁紙。
-
-- **📚 Steam OS 應用庫 (App Library)**
-  - 右上角一鍵開啟全螢幕格狀視圖。
-  - 多維度標籤分類：`全部 (All)`、`Galgame`、`復古 8-bit`、`自製作品`、`主機串流`、`系統工具`。
-  - 即時模糊搜尋、自訂收藏與應用管理。
-
-- **⚡ 效能監控與 Quick Settings (Performance HUD)**
-  - 左上角展開半透明毛玻璃側邊抽屜。
-  - **即時效能 HUD**：實時讀取 FPS、CPU 佔用率、RAM 可用量、電池溫度與充電瓦數。
-  - **快速開關**：效能檔位切換 (節能 / 平衡 / 狂暴)、亮度、音量、手柄模式開關。
-
-- **🎖️ 玩家儀表板 (Player Profile)**
-  - 正上方專屬看板：自訂玩家名稱、專屬頭像、成就徽章展示。
-  - 系統時鐘、Wi-Fi 信號與電池狀態即時同步。
-
-- **🕹️ 觸控虛擬手柄 & UyenController (PC 搖桿模式)**
-  - **無手柄輔助**：為復古遊戲與小遊戲提供高度自訂的半透明虛擬按鍵層。
-  - **變身電腦手柄**：支援透過 Wi-Fi (極低延遲 UDP 8999 埠) 廣播，直接將手機化身為電腦的 Xbox 360 遊戲手柄。
-  - **PC 端伴侶腳本**：內建 `scripts/uyen_controller_receiver.py`，支援 ViGEmBus / vgamepad 虛擬手柄驅動與封包調試。
-
-- **👾 內建 8-bit 懷舊街機 (Uyen 8-Bit Cyber Strike)**
-  - 純 Kotlin + Jetpack Compose Canvas 打造之 **90Hz 高刷流暢太空突擊遊戲**。
-  - 無需網路、隨開隨玩，具備像素雙雷射、敵機 AI、爆炸粒子、波次遞增、最高分紀錄與復古 8-bit 音效。
-
-- **🚀 全面遊戲相容中心 & 本地 ROM 掃描器 (LocalRomScanner)**
-  - **目錄架構**：自動在手機儲存空間建立標準化路徑 `/sdcard/Games/Galgames/`、`/sdcard/Games/ROMs/`。
-  - **檔案辨識**：自動掃描並載入 `.xp3`、`.rpa` (Galgame) 以及 `.nes`、`.gba`、`.sfc` (復古 ROM)。
-  - **核心引導**：當未安裝 Tyranor、Kirikiroid2、RetroArch 或 Moonlight 時，彈出「掌機核心指引彈窗」，提供一鍵建立目錄與內建街機體驗。
-
-- **🚢 自動隱藏邊緣側邊小條 (AutoHideEdgeHandle)**
-  - 右側邊緣常態保留 3.5dp 極細微光線條 (Alpha = 0.25f)，看海報時 100% 純淨不擋畫面。
-  - 點擊或向內撥動以彈簧動畫滑出微型藥丸膠囊（`[返回]`、`[主頁]`、`[多工]`、`[設定]`），3 秒無操作自動平滑縮回淡出。
-  - 徹底封鎖系統下拉通知列與 Android 邊緣返回手勢，支援 Kiosk 模式與真實 `RunningTask` 進程管理。
-
-- **🎛️ 掌機系統控制台 (SystemControlManager & QuickSettingsDrawer)**
-  - 左側邊緣向右滑動手勢平滑展開控制台。
-  - 整合媒體音量滑桿、視窗亮度滑桿、Wi-Fi/藍牙快速跳轉卡片。
-  - **掌機專注模式 (Game Focus DND)**：自動靜音後台通知與鈴聲，解決突然發出提示聲卻看不到的困擾。
-  - **效能 HUD 顯示開關**：可在設定中開啟/關閉左上角 FPS/溫度顯示，關閉時享受極致純淨海報視覺。
-
----
-
-## 🏗️ 商業級專案架構 (Architecture)
-
-本專案拒絕任何無效死碼與混亂結構，遵循 **Google Clean Architecture** 與 **MVI (Model-View-Intent)** 架構規範：
-
-```
+```text
 app/src/main/java/com/uyen/launcher/
-├── core/                  # 底層核心模組 (網絡、硬體感測、協程調度)
-│   ├── controller/        # UyenController 虛擬手柄與 UDP 廣播通訊
-│   ├── hardware/          # 效能監控 (PerformanceMonitor)、MemoryCleaner、SystemControlManager
-│   ├── scanner/           # LocalRomScanner (自動掃描 SDCard/Games)
-│   └── util/              # SoundManager (8-bit 音效合成)、SystemBarUtil (沉浸防護 & 水滴屏適配)
-├── data/                  # 資料層 (Repository, 資料模型)
-│   ├── model/             # 遊戲實體、玩家檔案、RunningTask 模型
-│   └── repository/        # GameRepository (動態聚合安裝套件與 ROM 項目)
-└── presentation/          # 表現層 (Jetpack Compose 現代化 UI)
-    ├── controller/        # TouchGamepadOverlay (虛擬按鍵與類比搖桿)
-    ├── home/              # PS5 主介面 (Hero Banner + 90Hz 卡片輪播)
-    │   └── components/    # AutoHideEdgeHandle, TaskSwitcher, Library, QuickSettings, EmulatorAssistant
-    ├── minigame/          # RetroArcadeScreen (內建 8-bit 太空突擊街機引擎)
-    ├── splash/            # Steam OS 開機動畫與跳過邏輯
-    └── theme/             # 主題配色、玻璃擬物化質感、Typography
-scripts/
-├── requirements.txt       # PC 端依賴 (vgamepad)
-└── uyen_controller_receiver.py # Windows PC 端 UDP 接收與虛擬 Xbox 360 手柄驅動腳本
+├── core/                  # 系統整合、文件掃描、效能讀取、海報與音效
+├── data/
+│   ├── model/             # 遊戲、帳號與畫面狀態模型
+│   └── repository/        # 已安裝 App、本機遊戲及本機遊戲庫偏好
+└── presentation/          # Activity 與 Jetpack Compose 畫面
+scripts/                   # UyenController 電腦端 UDP 接收器
 ```
 
----
+遊戲資料由 `GameRepository` 聚合；文件存取經由 Storage Access Framework 的 URI 權限，不使用全碟掃描。畫面狀態由 `HomeViewModel` 提供給 Compose。
 
-## 📱 實機目標硬體規格
+## 建置
 
-- **設備型號**：小米 Redmi 13C (Redmi 23108RN04Y)
-- **處理器**：MediaTek Helio G85 (8-core, Mali-G52 GPU)
-- **螢幕規格**：720 × 1600 @ **90Hz 高刷新率**
-- **作業系統**：Android 14 (API Level 34) / Xiaomi HyperOS
-- **記憶體 / 空間**：4 GB RAM / 128 GB ROM (約 97 GB 遊戲與素材可用空間)
+需求：Android Studio、JDK 21、Android SDK 35。
 
----
-
-## 🛠️ 開發與建置 (Build & Run)
-
-### 前置需求
-- **JDK**：OpenJDK 21 (推薦 Android Studio 內建 JBR)
-- **Android SDK**：API 34+
-- **Gradle**：8.11+
-- **Android Studio**：Ladybug (2024.2+) 或更高版本
-
-### 建置與安裝
 ```powershell
-# 1. 設置環境變數
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
-$env:ANDROID_HOME = "C:\Users\林尚楷\AppData\Local\Android\Sdk"
-
-# 2. 執行單元測試 (Unit Tests: 100% PASS)
-./gradlew test
-
-# 3. 編譯 Debug APK
-./gradlew assembleDebug
-
-# 4. 安裝至已連線之手機
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+.\gradlew.bat assembleDebug
 ```
 
-### 🎮 UyenController PC 接收端執行方式
-```bash
-cd scripts
-pip install -r requirements.txt
-python uyen_controller_receiver.py
-```
+Debug APK 會輸出到 `app/build/outputs/apk/debug/app-debug.apk`。PC 端接收器位於 `scripts/uyen_controller_receiver.py`，依賴列於 `scripts/requirements.txt`。
 
----
+## 隱私與版本管理
 
-## 📄 開源協議
-MIT License © 2026 Uyen Team
+- 不要求讀取聯絡人、整機帳號清單或所有外部儲存資料。
+- 遊戲資料夾由使用者透過系統選擇器授權，授權 URI 保存在 App 私有偏好中。
+- Google 登入只讀取使用者在此 App 授權的個人資料；目前不會上傳遊戲庫或遊玩時間。
+- Android Auto Backup 已關閉；裝置移轉行為仍可能依 Android/OEM 實作而異。
+- 本機 SDK 路徑、簽章金鑰、服務設定與環境檔應留在 Git 忽略清單內。提交前請檢查 `git status`，勿提交裝置資料、憑證或個人匯出檔。

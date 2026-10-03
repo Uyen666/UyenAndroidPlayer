@@ -5,9 +5,7 @@ import android.accounts.AccountManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.provider.ContactsContract
 import android.provider.Settings
-import android.util.Log
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -16,61 +14,121 @@ import com.uyen.launcher.data.model.GoogleAccount
 import java.io.File
 
 /**
- * 掌機真實 Google 帳號讀取、照片頭像同步與系統管理中心
+ * 掌機 Google 帳號管理、系統授權選取器與頭像照片同步中心
  */
 object GoogleAccountManager {
 
-    private const val TAG = "GoogleAccountManager"
     private const val PREFS_NAME = "uyen_google_account_prefs"
     private const val KEY_SAVED_EMAIL = "saved_google_email"
+    private const val KEY_SAVED_ACCOUNTS_SET = "saved_google_accounts_set"
     private const val KEY_AVATAR_PREFIX = "avatar_url_"
 
     /**
-     * 讀取設備上所有已登入的 Google 帳號
+     * 讀取指定帳號的頭像照片（優先順序：本地快照檔案 -> 儲存的 URI/URL -> 訪客後備）
+     */
+    fun getAvatarForAccount(context: Context, email: String): String? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val trimmed = email.trim()
+        val emailKey = trimmed.lowercase()
+
+        // 1. 本地沙盒永久快照檔案
+        val localFile = File(context.filesDir, "avatar_${emailKey.hashCode()}.png")
+        if (localFile.exists()) {
+            return Uri.fromFile(localFile).toString()
+        }
+
+        // 2. 儲存於 SharedPreferences 的 URL 或 URI
+        val saved = prefs.getString(KEY_AVATAR_PREFIX + emailKey, null)
+        if (!saved.isNullOrBlank()) {
+            return saved
+        }
+
+        // 3. 若為訪客或尚未登入，檢查 fallback 頭像
+        if (emailKey == "尚未登入" || emailKey.isBlank() || emailKey == "guest") {
+            val guestFile = File(context.filesDir, "avatar_${"guest".hashCode()}.png")
+            if (guestFile.exists()) return Uri.fromFile(guestFile).toString()
+
+            val unloggedFile = File(context.filesDir, "avatar_${"尚未登入".hashCode()}.png")
+            if (unloggedFile.exists()) return Uri.fromFile(unloggedFile).toString()
+
+            val guestSaved = prefs.getString(KEY_AVATAR_PREFIX + "guest", null)
+                ?: prefs.getString(KEY_AVATAR_PREFIX + "尚未登入", null)
+            if (!guestSaved.isNullOrBlank()) return guestSaved
+        }
+
+        return null
+    }
+
+    /**
+     * 取得設備上所有可用的 Google 帳號清單（包含系統 AccountManager、GoogleSignIn 與曾選取之帳號）
      */
     fun getGoogleAccounts(context: Context): List<GoogleAccount> {
-        val accountList = mutableListOf<GoogleAccount>()
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val lastGooglePhoto = try {
-            GoogleSignIn.getLastSignedInAccount(context)?.photoUrl?.toString()
-        } catch (_: Exception) { null }
+        val accountsMap = mutableMapOf<String, GoogleAccount>()
 
-        try {
+        // 1. 嘗試從系統 AccountManager 讀取設備上已登入的 Google 帳號
+        runCatching {
             val am = AccountManager.get(context)
             val accounts: Array<Account> = am.getAccountsByType("com.google")
-
             for (acc in accounts) {
                 val email = acc.name
-                val displayPrefix = email.substringBefore("@")
-                val capitalizedName = displayPrefix.replaceFirstChar { it.uppercase() }
-                
-                // 優先級：
-                // 1. 本地沙盒永久快照檔案 (最穩定可靠，無 Uri 權限過期風險)
-                // 2. 使用者自訂/同步儲存的 URL / URI
-                // 3. 系統聯絡人與個人資料卡片 (ContactsContract) 照片
-                // 4. GoogleSignIn 本機緩存照片
-                val localAvatarFile = File(context.filesDir, "avatar_${email.lowercase().hashCode()}.png")
-                val localAvatarUri = if (localAvatarFile.exists()) Uri.fromFile(localAvatarFile).toString() else null
-
-                val savedAvatar = localAvatarUri
-                    ?: prefs.getString(KEY_AVATAR_PREFIX + email.lowercase(), null)
-                    ?: getContactPhotoForEmail(context, email)
-                    ?: lastGooglePhoto
-
-                accountList.add(
-                    GoogleAccount(
+                if (!email.isNullOrBlank()) {
+                    val key = email.lowercase()
+                    val avatar = getAvatarForAccount(context, email)
+                    val prefix = email.substringBefore("@")
+                    val displayName = prefix.replaceFirstChar { it.uppercase() }
+                    accountsMap[key] = GoogleAccount(
                         email = email,
-                        displayName = capitalizedName,
-                        avatarUrl = savedAvatar,
+                        displayName = displayName,
+                        avatarUrl = avatar,
                         isConnected = true,
-                        cloudSyncStatus = "本機已同步 ($email)"
+                        dataStatusMessage = "Google 帳號已連結 ($email)"
                     )
+                }
+            }
+        }
+
+        // 2. 嘗試從 GoogleSignIn 快取中讀取
+        runCatching {
+            GoogleSignIn.getLastSignedInAccount(context)?.let { account ->
+                val email = account.email.orEmpty()
+                if (email.isNotBlank()) {
+                    val key = email.lowercase()
+                    val avatar = getAvatarForAccount(context, email) ?: account.photoUrl?.toString()
+                    val displayName = account.displayName ?: email.substringBefore('@').ifBlank { "Google 使用者" }
+                    accountsMap[key] = GoogleAccount(
+                        email = email,
+                        displayName = displayName,
+                        avatarUrl = avatar,
+                        isConnected = true,
+                        dataStatusMessage = "Google 帳號已連結 ($email)"
+                    )
+                }
+            }
+        }
+
+        // 3. 讀取使用者先前選取或儲存的帳號
+        val savedAccounts = prefs.getStringSet(KEY_SAVED_ACCOUNTS_SET, emptySet()).orEmpty()
+        val savedActive = prefs.getString(KEY_SAVED_EMAIL, null)
+        val allKnown = (savedAccounts + listOfNotNull(savedActive)).filter { it.isNotBlank() && it != "尚未登入" }
+
+        for (email in allKnown) {
+            val key = email.lowercase()
+            if (!accountsMap.containsKey(key)) {
+                val avatar = getAvatarForAccount(context, email)
+                val prefix = email.substringBefore("@")
+                val displayName = prefix.replaceFirstChar { it.uppercase() }
+                accountsMap[key] = GoogleAccount(
+                    email = email,
+                    displayName = displayName,
+                    avatarUrl = avatar,
+                    isConnected = true,
+                    dataStatusMessage = "Google 帳號已連結 ($email)"
                 )
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to get google accounts: ${e.message}")
         }
-        return accountList
+
+        return accountsMap.values.toList()
     }
 
     /**
@@ -78,11 +136,12 @@ object GoogleAccountManager {
      */
     fun saveAvatarUrl(context: Context, email: String, avatarUrl: String?) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val key = email.trim().lowercase()
         prefs.edit().apply {
             if (avatarUrl != null) {
-                putString(KEY_AVATAR_PREFIX + email.lowercase(), avatarUrl)
+                putString(KEY_AVATAR_PREFIX + key, avatarUrl)
             } else {
-                remove(KEY_AVATAR_PREFIX + email.lowercase())
+                remove(KEY_AVATAR_PREFIX + key)
             }
         }.apply()
     }
@@ -91,14 +150,22 @@ object GoogleAccountManager {
      * 從 Content Uri 或 相簿 Uri 複製並持久化為本機檔案 (永久不會失效、離線可用)
      */
     fun saveCustomAvatarFromUri(context: Context, email: String, sourceUri: Uri?): String? {
-        val targetFile = File(context.filesDir, "avatar_${email.lowercase().hashCode()}.png")
+        val trimmed = email.trim()
+        val key = if (trimmed.isBlank() || trimmed == "尚未登入") "guest" else trimmed.lowercase()
+        val targetFile = File(context.filesDir, "avatar_${key.hashCode()}.png")
+
         if (sourceUri == null) {
             if (targetFile.exists()) {
                 targetFile.delete()
             }
-            saveAvatarUrl(context, email, null)
+            saveAvatarUrl(context, key, null)
+            if (key == "guest") {
+                saveAvatarUrl(context, "尚未登入", null)
+                File(context.filesDir, "avatar_${"尚未登入".hashCode()}.png").delete()
+            }
             return null
         }
+
         return try {
             context.contentResolver.openInputStream(sourceUri)?.use { input ->
                 targetFile.outputStream().use { output ->
@@ -106,54 +173,33 @@ object GoogleAccountManager {
                 }
             }
             val localUri = Uri.fromFile(targetFile).toString()
-            saveAvatarUrl(context, email, localUri)
+            saveAvatarUrl(context, key, localUri)
+            if (key == "guest") {
+                saveAvatarUrl(context, "尚未登入", localUri)
+            }
             localUri
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to persist custom avatar: ${e.message}")
-            saveAvatarUrl(context, email, sourceUri.toString())
+        } catch (_: Exception) {
+            saveAvatarUrl(context, key, sourceUri.toString())
+            if (key == "guest") {
+                saveAvatarUrl(context, "尚未登入", sourceUri.toString())
+            }
             sourceUri.toString()
         }
     }
 
     /**
-     * 嘗試從系統聯絡人或個人 Profile 讀取照片
+     * 構建系統原生 Google 帳號選取器 Intent (零設定、原生相容所有已登入 Google 帳號)
      */
-    fun getContactPhotoForEmail(context: Context, email: String): String? {
-        return try {
-            // 1. 查詢 個人 Profile 照片
-            val profilePhotoUri = Uri.withAppendedPath(
-                ContactsContract.Profile.CONTENT_URI,
-                ContactsContract.Contacts.Photo.CONTENT_DIRECTORY
-            )
-            context.contentResolver.query(
-                profilePhotoUri,
-                arrayOf(ContactsContract.Contacts.Photo.PHOTO),
-                null, null, null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    return profilePhotoUri.toString()
-                }
-            }
-
-            // 2. 查詢該 Email 對應之聯絡人
-            val emailLookupUri = Uri.withAppendedPath(
-                ContactsContract.CommonDataKinds.Email.CONTENT_LOOKUP_URI,
-                Uri.encode(email)
-            )
-            context.contentResolver.query(
-                emailLookupUri,
-                arrayOf(ContactsContract.CommonDataKinds.Email.PHOTO_URI),
-                null, null, null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val uriStr = cursor.getString(0)
-                    if (!uriStr.isNullOrEmpty()) return uriStr
-                }
-            }
+    fun getChooseAccountIntent(): Intent {
+        return AccountManager.newChooseAccountIntent(
+            null,
+            null,
+            arrayOf("com.google"),
+            null,
+            null,
+            null,
             null
-        } catch (_: Exception) {
-            null
-        }
+        )
     }
 
     /**
@@ -181,9 +227,9 @@ object GoogleAccountManager {
             if (photoUrl != null) {
                 saveAvatarUrl(context, email, photoUrl)
             }
+            saveActiveGoogleAccount(context, email)
             photoUrl
-        } catch (e: Exception) {
-            Log.e(TAG, "Google Sign-In failed: ${e.message}")
+        } catch (_: Exception) {
             null
         }
     }
@@ -196,22 +242,36 @@ object GoogleAccountManager {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val savedEmail = prefs.getString(KEY_SAVED_EMAIL, null)
 
-        if (savedEmail != null) {
+        if (!savedEmail.isNullOrBlank() && savedEmail != "尚未登入") {
             val matched = accounts.find { it.email.equals(savedEmail, ignoreCase = true) }
             if (matched != null) return matched
+
+            val avatar = getAvatarForAccount(context, savedEmail)
+            val prefix = savedEmail.substringBefore("@")
+            val displayName = prefix.replaceFirstChar { it.uppercase() }
+            return GoogleAccount(
+                email = savedEmail,
+                displayName = displayName,
+                avatarUrl = avatar,
+                isConnected = true,
+                dataStatusMessage = "Google 帳號已連結 ($savedEmail)"
+            )
         }
 
         if (accounts.isNotEmpty()) {
             return accounts.first()
         }
 
-        // 若設備無 Google 帳號，顯示清晰的指引狀態
+        // 訪客／未登入狀態，檢查是否有為訪客或未登入設定的自訂頭像相片
+        val guestAvatar = getAvatarForAccount(context, "guest")
+            ?: getAvatarForAccount(context, "尚未登入")
+
         return GoogleAccount(
-            email = "請點擊登入 Google 帳號",
+            email = "尚未登入",
             displayName = "訪客",
-            avatarUrl = null,
+            avatarUrl = guestAvatar,
             isConnected = false,
-            cloudSyncStatus = "尚未綁定 Google Play 遊戲帳號"
+            dataStatusMessage = "遊戲資料保存在本機；此版本沒有雲端存檔功能"
         )
     }
 
@@ -220,7 +280,26 @@ object GoogleAccountManager {
      */
     fun saveActiveGoogleAccount(context: Context, email: String) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_SAVED_EMAIL, email).apply()
+        val currentSet = prefs.getStringSet(KEY_SAVED_ACCOUNTS_SET, emptySet()).orEmpty().toMutableSet()
+        if (email.isNotBlank() && email != "尚未登入") {
+            currentSet.add(email)
+        }
+        prefs.edit()
+            .putString(KEY_SAVED_EMAIL, email)
+            .putStringSet(KEY_SAVED_ACCOUNTS_SET, currentSet)
+            .apply()
+    }
+
+    /**
+     * 登出當前帳號並切換回訪客模式
+     */
+    fun logoutGoogleAccount(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().remove(KEY_SAVED_EMAIL).apply()
+        runCatching {
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+            GoogleSignIn.getClient(context, gso).signOut()
+        }
     }
 
     /**

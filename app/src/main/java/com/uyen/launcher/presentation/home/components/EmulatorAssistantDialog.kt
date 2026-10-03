@@ -62,7 +62,7 @@ import com.uyen.launcher.presentation.theme.TextSecondary
 fun EmulatorAssistantDialog(
     visible: Boolean,
     gameItem: GameItem?,
-    onCreateDirectories: () -> Unit,
+    onChooseGamesFolder: () -> Unit,
     onPlayBuiltinArcade: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -148,9 +148,9 @@ fun EmulatorAssistantDialog(
                             Text(
                                 text = when (currentItem.category) {
                                     com.uyen.launcher.data.model.GameCategory.GALGAME ->
-                                        "若要遊玩 Galgame，請在手機安裝 Tyranor 或 Kirikiroid2，並將 .xp3 / .rpa 遊戲資料夾放置於 /sdcard/Games/Galgames/ 目錄中。"
+                                        "若要遊玩 Galgame，請先安裝相容引擎，再選取包含 .xp3 / .rpa 遊戲檔的資料夾。"
                                     com.uyen.launcher.data.model.GameCategory.RETRO ->
-                                        "若要遊玩 FC/GBA/SFC 懷舊遊戲，請安裝 RetroArch，並將 .nes / .gba 放入 /sdcard/Games/ROMs/ 目錄。"
+                                        "若要遊玩 FC/GBA/SFC 懷舊遊戲，請先安裝相容模擬器，再選取包含 ROM 的資料夾。"
                                     com.uyen.launcher.data.model.GameCategory.STREAMING ->
                                         "若要進行 PC 主機串流，請安裝 Moonlight 或 Steam Link 並與電腦 Sunshine/Steam 配對。"
                                     else ->
@@ -187,13 +187,13 @@ fun EmulatorAssistantDialog(
 
                         // 一鍵建立遊戲資料夾
                         Button(
-                            onClick = onCreateDirectories,
+                            onClick = onChooseGamesFolder,
                             colors = ButtonDefaults.buttonColors(containerColor = GlassBackground),
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier
                                 .border(1.dp, SteamDeckAccent.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
                         ) {
-                            Text("📁 建立 /sdcard/Games 目錄", fontSize = 12.sp, color = AccentGreen)
+                            Text("📁 選擇遊戲資料夾", fontSize = 12.sp, color = AccentGreen)
                         }
                     }
                 }

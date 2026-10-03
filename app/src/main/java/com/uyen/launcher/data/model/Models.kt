@@ -7,11 +7,11 @@ enum class MainNavTab(val displayName: String) {
 }
 
 data class GoogleAccount(
-    val email: String = "linshangkai@gmail.com",
-    val displayName: String = "尚楷",
+    val email: String = "",
+    val displayName: String = "訪客",
     val avatarUrl: String? = null,
-    val isConnected: Boolean = true,
-    val cloudSyncStatus: String = "已同步雲端存檔"
+    val isConnected: Boolean = false,
+    val dataStatusMessage: String = "遊戲資料保存在本機"
 )
 
 enum class GameCategory(val displayName: String) {
@@ -30,6 +30,7 @@ data class GameItem(
     val category: GameCategory,
     val packageName: String? = null,
     val launchIntentUri: String? = null,
+    val mimeType: String? = null,
     val coverUrl: String? = null,
     val bannerUrl: String? = null,
     val playTimeHours: Float = 0f,
@@ -46,20 +47,17 @@ data class PlayerProfile(
 )
 
 data class SystemStats(
-    val fps: Int = 90,
-    val cpuUsagePercent: Int = 18,
-    val ramUsedMb: Long = 2350,
-    val ramTotalMb: Long = 3808,
-    val batteryPercent: Int = 93,
-    val batteryTempCelsius: Float = 33.8f,
-    val isCharging: Boolean = true,
-    val refreshRateFps: Int = 90
+    val fps: Int = 0,
+    val ramUsedMb: Long = 0,
+    val ramTotalMb: Long = 0,
+    val batteryPercent: Int = 0,
+    val batteryTempCelsius: Float = 0f,
+    val isCharging: Boolean = false
 )
 
 data class RunningTask(
     val id: String,
     val title: String,
     val packageName: String,
-    val memoryUsageMb: Long = 85,
     val startTimeMillis: Long = System.currentTimeMillis()
 )

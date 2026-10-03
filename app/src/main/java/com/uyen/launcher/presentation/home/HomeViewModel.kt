@@ -6,15 +6,16 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.uyen.launcher.core.account.GoogleAccountManager
 import com.uyen.launcher.core.banner.BannerSourceType
 import com.uyen.launcher.core.banner.GameBannerManager
 import com.uyen.launcher.core.banner.ResolvedBanner
-import com.uyen.launcher.core.hardware.MemoryCleaner
 import com.uyen.launcher.core.hardware.PerformanceMonitor
 import com.uyen.launcher.core.hardware.SystemControlManager
+import com.uyen.launcher.core.hardware.SystemMemoryManager
 import com.uyen.launcher.core.kiosk.ConsoleLockManager
 import com.uyen.launcher.core.service.GlobalConsoleEdgeService
 import com.uyen.launcher.core.util.SoundManager
@@ -37,17 +38,18 @@ import kotlinx.coroutines.launch
 
 /**
  * 主畫面核心 ViewModel
- * 統一管理 PS5 輪播狀態、Steam OS 遊戲庫、效能 HUD、真實多工任務、電競加速與硬體控制台
+ * 管理首頁狀態、遊戲庫、本機紀錄、效能 HUD 與系統控制台。
  */
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val gameRepository = GameRepository(application)
     private val performanceMonitor = PerformanceMonitor(application)
     private val soundManager = SoundManager(application)
-    private val memoryCleaner = MemoryCleaner(application)
     private val systemControlManager = SystemControlManager(application)
     private val gameBannerManager = GameBannerManager(application)
     private val prefs = application.getSharedPreferences("uyen_launcher_ui_prefs", Context.MODE_PRIVATE)
+    private var activePlaySessionId: String? = null
+    private var activePlaySessionStartedAt: Long = 0L
 
     val games: StateFlow<List<GameItem>> = gameRepository.games
 
@@ -65,13 +67,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         private const val PREF_KEY_HOME_PINNED = "home_pinned_games_ids_v2"
-        val DEFAULT_PINNED_IDS = listOf(
-            "controller_mode",
-            "streaming_steamlink",
-            "streaming_moonlight",
-            "galgame_tyranor",
-            "retro_8bit"
-        )
+        private const val KEY_ACTIVE_PLAY_ID = "active_play_session_id"
+        private const val KEY_ACTIVE_PLAY_STARTED_AT = "active_play_session_started_at"
+        val DEFAULT_PINNED_IDS = listOf("controller_mode", "retro_8bit")
+        private const val PREF_KEY_GAMES_TREE = "games_folder_tree_uri"
     }
 
     // 首頁自定義釘選卡片清單 (預設精選 5 張主機/串流/模擬器卡片)
@@ -133,6 +132,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         return _pinnedGameIds.value.contains(gameId)
     }
 
+    fun toggleFavorite(gameId: String) {
+        gameRepository.toggleFavorite(gameId)
+        _activeActionMenuGame.value = games.value.firstOrNull { it.id == gameId }
+    }
+
     // 依據目前選取的分頁標籤動態過濾遊戲清單 (首頁預設只展示 5 張玩家自定義卡片)
     val currentTabGames: StateFlow<List<GameItem>> = combine(games, _selectedTab, _pinnedGameIds) { allGames, tab, pinnedIds ->
         when (tab) {
@@ -186,7 +190,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _isFullScreenControllerMode = MutableStateFlow(false)
     val isFullScreenControllerMode: StateFlow<Boolean> = _isFullScreenControllerMode.asStateFlow()
 
-    // 真實後台運行任務清單 (僅記錄真正啟動或運行的程序，拒絕假數據)
+    // 最近由啟動器開啟的項目；Android 不提供一般 App 可靠的全域前台任務清單。
     private val _runningTasks = MutableStateFlow<List<RunningTask>>(emptyList())
     val runningTasks: StateFlow<List<RunningTask>> = _runningTasks.asStateFlow()
 
@@ -225,7 +229,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         refreshGoogleAccounts()
         viewModelScope.launch {
             gameRepository.scanInstalledApps()
-            gameRepository.scanLocalRomFiles()
+            gameRepository.scanLocalRomFiles(savedGamesFolderUri())
         }
         // 背景預先解析遊戲大海報 (優先解析首頁釘選與可見卡片)
         viewModelScope.launch {
@@ -266,14 +270,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshGoogleAccounts() {
         val app = getApplication<Application>()
-        _availableGoogleAccounts.value = GoogleAccountManager.getGoogleAccounts(app)
-        _googleAccount.value = GoogleAccountManager.getActiveGoogleAccount(app)
+        val accounts = GoogleAccountManager.getGoogleAccounts(app)
+        val active = GoogleAccountManager.getActiveGoogleAccount(app)
+        _availableGoogleAccounts.value = accounts
+        _googleAccount.value = active
+        _playerProfile.value = _playerProfile.value.copy(
+            username = if (active.isConnected) active.displayName else "Uyen",
+            avatarUrl = active.avatarUrl
+        )
     }
 
     fun switchGoogleAccount(account: GoogleAccount) {
         val app = getApplication<Application>()
         GoogleAccountManager.saveActiveGoogleAccount(app, account.email)
         _googleAccount.value = account
+        _playerProfile.value = _playerProfile.value.copy(
+            username = account.displayName,
+            avatarUrl = account.avatarUrl
+        )
         viewModelScope.launch {
             soundManager.playClick()
             boostPerformance("已切換帳號：${account.email}")
@@ -288,6 +302,30 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         GoogleAccountManager.openAddGoogleAccount(getApplication())
     }
 
+    fun getChooseAccountIntent(): Intent {
+        return GoogleAccountManager.getChooseAccountIntent()
+    }
+
+    fun onGoogleAccountSelected(email: String) {
+        val app = getApplication<Application>()
+        GoogleAccountManager.saveActiveGoogleAccount(app, email)
+        refreshGoogleAccounts()
+        viewModelScope.launch {
+            soundManager.playConfirmSound()
+            boostPerformance("Google 帳號已連結：$email")
+        }
+    }
+
+    fun logoutGoogleAccount() {
+        val app = getApplication<Application>()
+        GoogleAccountManager.logoutGoogleAccount(app)
+        refreshGoogleAccounts()
+        viewModelScope.launch {
+            soundManager.playCancelSound()
+            boostPerformance("已切換為訪客模式")
+        }
+    }
+
     fun getGoogleSignInIntent(): Intent {
         return GoogleAccountManager.getGoogleSignInIntent(getApplication())
     }
@@ -299,7 +337,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             refreshGoogleAccounts()
             boostPerformance("已同步 Google 帳號相片！")
         } else {
-            boostPerformance("提示：雲端登入需後端金鑰，已為您開啟相簿選取照片")
             onFallback()
         }
     }
@@ -308,9 +345,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val app = getApplication<Application>()
         val currentEmail = _googleAccount.value.email
         val sourceUri = uriString?.let { Uri.parse(it) }
-        GoogleAccountManager.saveCustomAvatarFromUri(app, currentEmail, sourceUri)
+        val newAvatarUri = GoogleAccountManager.saveCustomAvatarFromUri(app, currentEmail, sourceUri)
         refreshGoogleAccounts()
-        boostPerformance(if (uriString != null) "已更新個人相片！" else "已重設個人相片")
+        _playerProfile.value = _playerProfile.value.copy(
+            avatarUrl = newAvatarUri ?: _googleAccount.value.avatarUrl
+        )
+        viewModelScope.launch {
+            soundManager.playConfirmSound()
+            boostPerformance(if (uriString != null) "已成功套用個人頭像相片！" else "已重設個人相片")
+        }
     }
 
     fun isOverlayPermissionGranted(): Boolean {
@@ -336,7 +379,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             soundManager.playClick()
             boostPerformance("已重新整理遊戲庫與本機 ROM")
             gameRepository.scanInstalledApps()
-            gameRepository.scanLocalRomFiles()
+            gameRepository.scanLocalRomFiles(savedGamesFolderUri())
             refreshGoogleAccounts()
         }
     }
@@ -431,7 +474,37 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setRetroArcadeOpen(open: Boolean) {
+        if (!open) finishPlaySession()
         _isRetroArcadeOpen.value = open
+    }
+
+    fun onLauncherResumed() {
+        val id = prefs.getString(KEY_ACTIVE_PLAY_ID, null) ?: return
+        val startedAt = prefs.getLong(KEY_ACTIVE_PLAY_STARTED_AT, 0L)
+        if (startedAt > 0L) gameRepository.recordPlaySession(id, System.currentTimeMillis() - startedAt)
+        prefs.edit().remove(KEY_ACTIVE_PLAY_ID).remove(KEY_ACTIVE_PLAY_STARTED_AT).apply()
+        activePlaySessionId = null
+        activePlaySessionStartedAt = 0L
+    }
+
+    private fun startPlaySession(gameId: String) {
+        finishPlaySession()
+        activePlaySessionId = gameId
+        activePlaySessionStartedAt = System.currentTimeMillis()
+        prefs.edit()
+            .putString(KEY_ACTIVE_PLAY_ID, gameId)
+            .putLong(KEY_ACTIVE_PLAY_STARTED_AT, activePlaySessionStartedAt)
+            .apply()
+    }
+
+    private fun finishPlaySession() {
+        val gameId = activePlaySessionId ?: prefs.getString(KEY_ACTIVE_PLAY_ID, null) ?: return
+        val startedAt = activePlaySessionStartedAt.takeIf { it > 0L }
+            ?: prefs.getLong(KEY_ACTIVE_PLAY_STARTED_AT, 0L)
+        if (startedAt > 0L) gameRepository.recordPlaySession(gameId, System.currentTimeMillis() - startedAt)
+        prefs.edit().remove(KEY_ACTIVE_PLAY_ID).remove(KEY_ACTIVE_PLAY_STARTED_AT).apply()
+        activePlaySessionId = null
+        activePlaySessionStartedAt = 0L
     }
 
     fun setAssistantDialogItem(item: GameItem?) {
@@ -441,6 +514,41 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun setPerformanceHudVisible(visible: Boolean) {
         _showPerformanceHud.value = visible
         prefs.edit().putBoolean("show_hud", visible).apply()
+        GlobalConsoleEdgeService.updateHudVisibility(getApplication(), visible)
+    }
+
+    /**
+     * 退出 UyenLauncher (系統唯一正規退出管道)
+     * 解除 Kiosk 掌機鎖定、終止常駐懸浮快捷列服務，並導向原生桌面設定後結束應用
+     */
+    fun exitLauncher(activity: Activity?) {
+        viewModelScope.launch {
+            soundManager.playCancelSound()
+        }
+        if (activity == null) return
+
+        try {
+            ConsoleLockManager.disableConsoleLock(activity)
+            _isKioskModeEnabled.value = false
+        } catch (_: Exception) {}
+
+        GlobalConsoleEdgeService.stop(activity)
+
+        try {
+            val homeSettingsIntent = Intent(Settings.ACTION_HOME_SETTINGS).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            activity.startActivity(homeSettingsIntent)
+        } catch (_: Exception) {
+            try {
+                val manageAppsIntent = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                activity.startActivity(manageAppsIntent)
+            } catch (_: Exception) {}
+        }
+
+        activity.finishAffinity()
     }
 
     fun setVolume(volume: Float) {
@@ -467,19 +575,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         systemControlManager.openNotificationSettings()
     }
 
-    fun createGameDirectories() {
-        val success = gameRepository.createGameDirectories()
-        _boostMessage.value = if (success) {
-            "已在儲存空間建立 /sdcard/Games 遊戲目錄！"
-        } else {
-            "目錄已存在或建立完成"
+    fun setGamesFolder(uri: Uri) {
+        val resolver = getApplication<Application>().contentResolver
+        savedGamesFolderUri()?.takeIf { it != uri }?.let { previous ->
+            runCatching { resolver.releasePersistableUriPermission(previous, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         }
+        runCatching {
+            resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        prefs.edit().putString(PREF_KEY_GAMES_TREE, uri.toString()).apply()
         viewModelScope.launch {
-            gameRepository.scanLocalRomFiles()
-            kotlinx.coroutines.delay(2500)
-            _boostMessage.value = null
+            gameRepository.scanLocalRomFiles(uri)
+            boostPerformance("已更新所選資料夾中的遊戲檔案")
         }
     }
+
+    private fun savedGamesFolderUri(): Uri? = prefs.getString(PREF_KEY_GAMES_TREE, null)?.let(Uri::parse)
 
     fun launchGame(item: GameItem) {
         viewModelScope.launch {
@@ -492,27 +603,27 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             "controller_mode" -> {
                 _isFullScreenControllerMode.value = true
             }
-            "retro_8bit", "custom_sandbox" -> {
+            "retro_8bit" -> {
                 // 啟動內建 8-bit 太空突擊懷舊街機
                 _isRetroArcadeOpen.value = true
+                startPlaySession(item.id)
                 val newTask = RunningTask(
                     id = item.id,
                     title = item.title,
                     packageName = "com.uyen.launcher.arcade",
-                    memoryUsageMb = 78,
                     startTimeMillis = System.currentTimeMillis()
                 )
                 _runningTasks.value = listOf(newTask) + _runningTasks.value.filter { it.id != item.id }
             }
             else -> {
                 val launched = gameRepository.launchGame(item)
-                if (launched && item.packageName != null) {
+                if (launched) {
+                    startPlaySession(item.id)
                     // 將真正啟動的遊戲登記進後台運行程序列表
                     val newTask = RunningTask(
                         id = item.id,
                         title = item.title,
-                        packageName = item.packageName,
-                        memoryUsageMb = (60..160).random().toLong(),
+                        packageName = item.packageName ?: item.launchIntentUri.orEmpty(),
                         startTimeMillis = System.currentTimeMillis()
                     )
                     _runningTasks.value = listOf(newTask) + _runningTasks.value.filter { it.packageName != item.packageName }
@@ -531,7 +642,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             soundManager.playConfirmSound()
         }
-        _isRetroArcadeOpen.value = false
+        setRetroArcadeOpen(false)
         _assistantDialogItem.value = null
         _isSettingsOpen.value = false
         _isLibraryOpen.value = false
@@ -548,7 +659,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             soundManager.playCardFocusSound()
         }
         when {
-            _isRetroArcadeOpen.value -> _isRetroArcadeOpen.value = false
+            _isRetroArcadeOpen.value -> setRetroArcadeOpen(false)
             _assistantDialogItem.value != null -> _assistantDialogItem.value = null
             _isFullScreenControllerMode.value -> _isFullScreenControllerMode.value = false
             _isTaskSwitcherOpen.value -> _isTaskSwitcherOpen.value = false
@@ -558,42 +669,33 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * 電競級一鍵清理背景：終止所有真實後台遊戲行程，清空運行列表
-     */
+    /** Clears launcher recents and kills cached background processes to free RAM with real measurements. */
     fun cleanMemory() {
         viewModelScope.launch {
             soundManager.playConfirmSound()
 
-            // 終止所有追踪的背景程序
-            val actManager = getApplication<Application>().getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-            _runningTasks.value.forEach { task ->
-                actManager?.killBackgroundProcesses(task.packageName)
-            }
-            val killedCount = _runningTasks.value.size
-            _runningTasks.value = emptyList() // 清空多工運行列表
+            val recentPackages = _runningTasks.value.map { it.packageName }
+            _runningTasks.value = emptyList()
 
-            val freedMb = memoryCleaner.cleanMemory()
-            _boostMessage.value = if (killedCount > 0) {
-                "⚡ 電競加速完成！已終止 $killedCount 個背景程序，釋放約 ${freedMb} MB RAM"
-            } else {
-                "⚡ 系統記憶體已最優化，釋放約 ${freedMb} MB 快取"
-            }
-            delay(3000)
+            _boostMessage.value = "⚡ 正在釋放系統 RAM 與後台程序..."
+
+            val result = SystemMemoryManager.cleanRam(getApplication(), recentPackages)
+
+            // 立即刷新效能監控數據與 HUD
+            performanceMonitor.updateSystemStats()
+
+            _boostMessage.value = result.displayMessage
+            delay(3500)
             _boostMessage.value = null
         }
     }
 
-    /**
-     * 終止指定背景遊戲
-     */
-    fun killTask(task: RunningTask) {
-        val actManager = getApplication<Application>().getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-        actManager?.killBackgroundProcesses(task.packageName)
+    /** Removes one item from this launcher's recent-launch history. */
+    fun removeRecentLaunch(task: RunningTask) {
         _runningTasks.value = _runningTasks.value.filter { it.id != task.id }
         viewModelScope.launch {
             soundManager.playCardFocusSound()
-            _boostMessage.value = "已結束 ${task.title} 後台程序"
+            _boostMessage.value = "已移除 ${task.title} 的啟動紀錄"
             delay(2000)
             _boostMessage.value = null
         }

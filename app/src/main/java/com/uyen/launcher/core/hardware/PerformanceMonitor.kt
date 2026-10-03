@@ -39,7 +39,7 @@ class PerformanceMonitor(private val context: Context) {
                 val currentFps = fpsCounter
                 fpsCounter = 0
                 lastFpsTimestamp = now
-                _stats.value = _stats.value.copy(fps = currentFps.coerceAtMost(90))
+                _stats.value = _stats.value.copy(fps = currentFps)
             }
             Choreographer.getInstance().postFrameCallback(this)
         }
@@ -64,7 +64,7 @@ class PerformanceMonitor(private val context: Context) {
         monitorJob = null
     }
 
-    private fun updateSystemStats() {
+    fun updateSystemStats() {
         // 記憶體資訊
         val actManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
         val memInfo = ActivityManager.MemoryInfo()
@@ -76,7 +76,7 @@ class PerformanceMonitor(private val context: Context) {
         val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, 90) ?: 90
         val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
-        val batteryPct = (level * 100) / scale
+        val batteryPct = (level * 100 / scale.coerceAtLeast(1)).coerceIn(0, 100)
         val tempRaw = batteryIntent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 320) ?: 320
         val tempCelsius = tempRaw / 10.0f
         val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1

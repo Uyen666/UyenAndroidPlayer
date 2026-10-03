@@ -9,6 +9,8 @@
 
 # Java class files
 *.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
 
 # Generated files
 bin/
@@ -54,6 +56,22 @@ local.properties
 signing.properties
 release-keystore.properties
 secrets.properties
+key.properties
+keystore.properties
+*.p8
+*.mobileprovision
+*.asc
+
+# Local environment variables, service credentials and private device exports
+.env
+.env.*
+!.env.example
+credentials.json
+client_secret*.json
+service-account*.json
+local-secrets/
+private/
+device-exports/
 
 # Google Services / Sensitive API Configurations
 google-services.json

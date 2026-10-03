@@ -3,6 +3,8 @@ package com.uyen.launcher.data.repository
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import com.uyen.launcher.core.scanner.LocalRomScanner
 import com.uyen.launcher.data.model.GameCategory
 import com.uyen.launcher.data.model.GameItem
 import kotlinx.coroutines.Dispatchers
@@ -11,175 +13,117 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
-/**
- * 遊戲與應用庫資料倉庫
- */
+/** Aggregates built-in experiences, launchable apps, and user-selected local game folders. */
 class GameRepository(private val context: Context) {
 
-    private val _games = MutableStateFlow<List<GameItem>>(emptyList())
+    private val scanner = LocalRomScanner(context.contentResolver)
+    private val _games = MutableStateFlow(defaultGames)
     val games: StateFlow<List<GameItem>> = _games.asStateFlow()
 
-    init {
-        loadDefaultHandheldGames()
+    private var installedApps: List<GameItem> = emptyList()
+    private var localGames: List<GameItem> = emptyList()
+    private val favoriteIds = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getStringSet(KEY_FAVORITES, emptySet()).orEmpty().toMutableSet()
+
+    fun toggleFavorite(gameId: String) {
+        if (!favoriteIds.add(gameId)) favoriteIds.remove(gameId)
+        favoriteIds.let { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putStringSet(KEY_FAVORITES, it.toSet()).apply() }
+        publishGames()
     }
 
-    private fun loadDefaultHandheldGames() {
-        val initialList = mutableListOf(
-            GameItem(
-                id = "controller_mode",
-                title = "UyenController",
-                subtitle = "將手機化身為 PC 無線 Xbox 手柄",
-                category = GameCategory.CUSTOM,
-                tags = listOf("手柄模式", "UDP/藍牙", "低延遲"),
-                playTimeHours = 12.5f,
-                bannerUrl = "https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?q=80&w=1920&auto=format&fit=crop",
-                isFavorite = true
-            ),
-            GameItem(
-                id = "galgame_tyranor",
-                title = "Tyranor 視覺小說引擎",
-                subtitle = "相容 Artemis / RPG Maker / Tyranor / O2",
-                category = GameCategory.GALGAME,
-                packageName = "com.tyranor",
-                tags = listOf("Galgame", "AVG", "ONS", "KRKR"),
-                playTimeHours = 28.4f,
-                bannerUrl = "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop",
-                isFavorite = true
-            ),
-            GameItem(
-                id = "retro_8bit",
-                title = "8-bit 復古懷舊精選",
-                subtitle = "紅白機 NES / FC 經典像素遊戲核心",
-                category = GameCategory.RETRO,
-                tags = listOf("8-bit", "FC", "像素", "街機"),
-                playTimeHours = 15.2f,
-                bannerUrl = "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1920&auto=format&fit=crop",
-                isFavorite = true
-            ),
-            GameItem(
-                id = "streaming_moonlight",
-                title = "Moonlight 串流主機",
-                subtitle = "720p 90Hz 極低延遲 Sunshine / Nvidia 串流",
-                category = GameCategory.STREAMING,
-                packageName = "com.limelight",
-                tags = listOf("3A大作", "PC串流", "90FPS"),
-                playTimeHours = 45.0f,
-                bannerUrl = "https://play-lh.googleusercontent.com/nZ1sv_1PalwMkR_c1XIBhAa9yr15PSYCLxVx6dogYaoGoj3nPM6ZmG70zv8VF_s2YQs9VwtX3bdxqVvuce6f=w1920-h1080",
-                isFavorite = true
-            ),
-            GameItem(
-                id = "custom_sandbox",
-                title = "自製遊戲沙盒 (Canvas)",
-                subtitle = "支援 HTML5 / PixiJS / Godot Web 自製微遊戲",
-                category = GameCategory.CUSTOM,
-                tags = listOf("自製作品", "Web", "獨立遊戲"),
-                playTimeHours = 8.1f,
-                bannerUrl = "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920&auto=format&fit=crop"
-            ),
-            GameItem(
-                id = "galgame_krkr",
-                title = "Kirikiroid2 吉里吉里",
-                subtitle = "XP3 經典日系 Galgame 引擎模擬庫",
-                category = GameCategory.GALGAME,
-                packageName = "org.tvp.kirikiri2",
-                tags = listOf("Galgame", "AVG", "日系"),
-                playTimeHours = 19.3f,
-                bannerUrl = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop"
-            ),
-            GameItem(
-                id = "retro_gba",
-                title = "GBA 掌機模擬庫",
-                subtitle = "經典 Game Boy Advance 核心",
-                category = GameCategory.RETRO,
-                tags = listOf("GBA", "16-bit", "掌機"),
-                playTimeHours = 34.6f,
-                bannerUrl = "https://images.unsplash.com/photo-1531525645387-7f14be1bdbbd?q=80&w=1920&auto=format&fit=crop"
-            ),
-            GameItem(
-                id = "streaming_steamlink",
-                title = "Steam Link",
-                subtitle = "Steam 官方遠端暢玩直連",
-                category = GameCategory.STREAMING,
-                packageName = "com.valvesoftware.steamlink",
-                tags = listOf("Steam", "串流", "遠端"),
-                playTimeHours = 22.0f,
-                bannerUrl = "https://play-lh.googleusercontent.com/6TU14znIBQ6oierlwk8twhgqDLMhA3y-a-daQq8jF5d_OZpk9HpEo9rlMQ_KhxSUQ-mpohuQLVmH-jy6zoVCaTU=w1920-h1080"
-            )
-        )
-        _games.value = initialList
+    fun recordPlaySession(gameId: String, durationMillis: Long) {
+        if (durationMillis <= 0) return
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val key = "play_millis_$gameId"
+        prefs.edit().putLong(key, prefs.getLong(key, 0L) + durationMillis).apply()
+        publishGames()
     }
 
     suspend fun scanInstalledApps() = withContext(Dispatchers.IO) {
         val pm = context.packageManager
-        val intent = Intent(Intent.ACTION_MAIN, null).apply {
-            addCategory(Intent.CATEGORY_LAUNCHER)
-        }
-        val resolveInfos = pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
-
-        val scannedItems = resolveInfos.mapNotNull { resolveInfo ->
-            val pkg = resolveInfo.activityInfo.packageName
-            // 排除自身啟動器
-            if (pkg == context.packageName) return@mapNotNull null
-            val label = resolveInfo.loadLabel(pm).toString()
-
-            val category = when {
-                pkg.contains("tyranor", true) || pkg.contains("kirikiri", true) ||
-                        pkg.contains("renpy", true) || pkg.contains("gal", true) -> GameCategory.GALGAME
-                pkg.contains("retro", true) || pkg.contains("emu", true) ||
-                        pkg.contains("nostalgia", true) || pkg.contains("arcade", true) -> GameCategory.RETRO
-                pkg.contains("moonlight", true) || pkg.contains("steam", true) ||
-                        pkg.contains("parsec", true) -> GameCategory.STREAMING
-                else -> GameCategory.TOOL
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        installedApps = pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
+            .asSequence()
+            .mapNotNull { resolveInfo ->
+                val activity = resolveInfo.activityInfo ?: return@mapNotNull null
+                if (activity.packageName == context.packageName) return@mapNotNull null
+                GameItem(
+                    id = "app:${activity.packageName}",
+                    title = resolveInfo.loadLabel(pm).toString(),
+                    subtitle = activity.packageName,
+                    category = categorize(activity.packageName),
+                    packageName = activity.packageName
+                )
             }
-
-            GameItem(
-                id = pkg,
-                title = label,
-                subtitle = pkg,
-                category = category,
-                packageName = pkg,
-                playTimeHours = 0f
-            )
-        }
-
-        // 合併預置遊戲與掃描出的本機應用 (避免重複)
-        val currentList = _games.value.toMutableList()
-        scannedItems.forEach { scanned ->
-            if (currentList.none { it.packageName == scanned.packageName }) {
-                currentList.add(scanned)
-            }
-        }
-        _games.value = currentList
+            .distinctBy(GameItem::id)
+            .sortedBy(GameItem::title)
+            .toList()
+        publishGames()
     }
 
-    private val romScanner = com.uyen.launcher.core.scanner.LocalRomScanner()
-
-    fun createGameDirectories(): Boolean {
-        return romScanner.ensureDirectoryStructure()
-    }
-
-    suspend fun scanLocalRomFiles() = withContext(Dispatchers.IO) {
-        val romItems = romScanner.scanLocalGames()
-        if (romItems.isNotEmpty()) {
-            val currentList = _games.value.toMutableList()
-            romItems.forEach { rom ->
-                if (currentList.none { it.id == rom.id }) {
-                    currentList.add(rom)
-                }
-            }
-            _games.value = currentList
-        }
+    suspend fun scanLocalRomFiles(treeUri: Uri?) = withContext(Dispatchers.IO) {
+        localGames = treeUri?.let { scanner.scan(it) }.orEmpty()
+        publishGames()
     }
 
     fun launchGame(item: GameItem): Boolean {
-        item.packageName?.let { pkg ->
-            val intent = context.packageManager.getLaunchIntentForPackage(pkg)
-            if (intent != null) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
-                return true
-            }
+        val packageName = item.packageName
+        if (packageName != null) {
+            val intent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return false
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            return true
         }
-        return false
+        val uri = item.launchIntentUri?.let(Uri::parse) ?: return false
+        return runCatching {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, item.mimeType ?: "application/octet-stream")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(intent)
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun publishGames() {
+        _games.value = (defaultGames + installedApps + localGames)
+            .distinctBy(GameItem::id)
+            .map { game ->
+                val playedMillis = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .getLong("play_millis_${game.id}", 0L)
+                game.copy(
+                    isFavorite = game.id in favoriteIds,
+                    playTimeHours = playedMillis / 3_600_000f
+                )
+            }
+    }
+
+    private fun categorize(packageName: String): GameCategory = when {
+        listOf("tyranor", "kirikiri", "renpy", "galgame").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.GALGAME
+        listOf("retro", "emu", "nostalgia", "arcade").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.RETRO
+        listOf("moonlight", "steam", "parsec").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.STREAMING
+        else -> GameCategory.TOOL
+    }
+
+    private companion object {
+        const val KEY_FAVORITES = "favorite_game_ids"
+        const val PREFS_NAME = "uyen_library_prefs"
+        val defaultGames = listOf(
+            GameItem(
+                id = "controller_mode",
+                title = "UyenController",
+                subtitle = "將手機化身為 PC 無線手柄",
+                category = GameCategory.CUSTOM,
+                tags = listOf("手柄模式", "UDP")
+            ),
+            GameItem(
+                id = "retro_8bit",
+                title = "Uyen 8-Bit Cyber Strike",
+                subtitle = "內建離線街機遊戲",
+                category = GameCategory.RETRO,
+                tags = listOf("8-bit", "離線")
+            )
+        )
     }
 }
