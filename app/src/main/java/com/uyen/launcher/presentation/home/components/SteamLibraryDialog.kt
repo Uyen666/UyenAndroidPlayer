@@ -104,6 +104,8 @@ private data class SteamDeckCategory(
 fun SteamLibraryDialog(
     visible: Boolean,
     games: List<GameItem>,
+    pinnedGameIds: List<String> = emptyList(),
+    onTogglePin: ((String) -> Unit)? = null,
     onLaunchGame: (GameItem) -> Unit,
     onClose: () -> Unit
 ) {
@@ -379,6 +381,8 @@ fun SteamLibraryDialog(
                             items(filteredGames, key = { it.id }) { game ->
                                 SteamDeckPosterCard(
                                     game = game,
+                                    isPinned = pinnedGameIds.contains(game.id),
+                                    onTogglePin = onTogglePin,
                                     onClick = {
                                         onClose()
                                         onLaunchGame(game)
@@ -502,6 +506,8 @@ private fun ControllerKeyHint(
 @Composable
 private fun SteamDeckPosterCard(
     game: GameItem,
+    isPinned: Boolean = false,
+    onTogglePin: ((String) -> Unit)? = null,
     onClick: () -> Unit
 ) {
     val cardShape = RoundedCornerShape(10.dp)
@@ -668,6 +674,25 @@ private fun SteamDeckPosterCard(
             }
 
             Spacer(modifier = Modifier.width(4.dp))
+
+            // 若已釘選在首頁，展示閃耀首頁標章 (★)
+            if (isPinned) {
+                Box(
+                    modifier = Modifier
+                        .size(17.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF00E5FF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "已在首頁",
+                        tint = Color.Black,
+                        modifier = Modifier.size(11.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(3.dp))
+            }
 
             // Steam Deck 綠色驗證徽章 (✔)
             Box(

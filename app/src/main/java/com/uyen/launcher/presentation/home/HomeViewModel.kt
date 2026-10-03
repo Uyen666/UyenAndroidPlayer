@@ -51,10 +51,84 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedTab = MutableStateFlow(MainNavTab.HOME)
     val selectedTab: StateFlow<MainNavTab> = _selectedTab.asStateFlow()
 
-    // 依據目前選取的分頁標籤動態過濾遊戲清單
-    val currentTabGames: StateFlow<List<GameItem>> = combine(games, _selectedTab) { allGames, tab ->
+    companion object {
+        private const val PREF_KEY_HOME_PINNED = "home_pinned_games_ids_v2"
+        val DEFAULT_PINNED_IDS = listOf(
+            "controller_mode",
+            "streaming_steamlink",
+            "streaming_moonlight",
+            "galgame_tyranor",
+            "retro_8bit"
+        )
+    }
+
+    // 首頁自定義釘選卡片清單 (預設精選 5 張主機/串流/模擬器卡片)
+    private val _pinnedGameIds = MutableStateFlow<List<String>>(loadPinnedGameIds())
+    val pinnedGameIds: StateFlow<List<String>> = _pinnedGameIds.asStateFlow()
+
+    // 首頁卡片管理/添加彈窗狀態
+    private val _isCardManagerOpen = MutableStateFlow(false)
+    val isCardManagerOpen: StateFlow<Boolean> = _isCardManagerOpen.asStateFlow()
+
+    fun setCardManagerOpen(open: Boolean) {
+        _isCardManagerOpen.value = open
+    }
+
+    private fun loadPinnedGameIds(): List<String> {
+        val raw = prefs.getString(PREF_KEY_HOME_PINNED, null)
+        if (raw.isNullOrBlank()) {
+            return DEFAULT_PINNED_IDS
+        }
+        return try {
+            val list = raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            if (list.isNotEmpty()) list else DEFAULT_PINNED_IDS
+        } catch (_: Exception) {
+            DEFAULT_PINNED_IDS
+        }
+    }
+
+    private fun savePinnedGameIds(ids: List<String>) {
+        prefs.edit().putString(PREF_KEY_HOME_PINNED, ids.joinToString(",")).apply()
+        _pinnedGameIds.value = ids
+    }
+
+    fun pinGameToHome(gameId: String) {
+        val current = _pinnedGameIds.value.toMutableList()
+        if (!current.contains(gameId)) {
+            current.add(gameId)
+            savePinnedGameIds(current)
+            boostPerformance("已添加卡片至首頁")
+        }
+    }
+
+    fun unpinGameFromHome(gameId: String) {
+        val current = _pinnedGameIds.value.toMutableList()
+        if (current.remove(gameId)) {
+            savePinnedGameIds(current)
+            boostPerformance("已從首頁移除卡片")
+        }
+    }
+
+    fun togglePinGame(gameId: String) {
+        if (_pinnedGameIds.value.contains(gameId)) {
+            unpinGameFromHome(gameId)
+        } else {
+            pinGameToHome(gameId)
+        }
+    }
+
+    fun isGamePinned(gameId: String): Boolean {
+        return _pinnedGameIds.value.contains(gameId)
+    }
+
+    // 依據目前選取的分頁標籤動態過濾遊戲清單 (首頁預設只展示 5 張玩家自定義卡片)
+    val currentTabGames: StateFlow<List<GameItem>> = combine(games, _selectedTab, _pinnedGameIds) { allGames, tab, pinnedIds ->
         when (tab) {
-            MainNavTab.HOME -> allGames
+            MainNavTab.HOME -> {
+                val gameMap = allGames.associateBy { it.id }
+                val pinnedList = pinnedIds.mapNotNull { gameMap[it] }
+                if (pinnedList.isNotEmpty()) pinnedList else allGames.take(5)
+            }
             MainNavTab.STREAMING -> allGames.filter {
                 it.category == GameCategory.STREAMING || it.id == "controller_mode"
             }

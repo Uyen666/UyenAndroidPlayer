@@ -48,9 +48,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.uyen.launcher.core.util.AppIconUtil
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +69,7 @@ import com.uyen.launcher.presentation.home.components.GameCarousel
 import com.uyen.launcher.presentation.home.components.GoogleAccountDialog
 import com.uyen.launcher.presentation.home.components.HandheldTaskSwitcherDialog
 import com.uyen.launcher.presentation.home.components.HeroBanner
+import com.uyen.launcher.presentation.home.components.HomeCardManagerDialog
 import com.uyen.launcher.presentation.home.components.QuickSettingsDrawer
 import com.uyen.launcher.presentation.home.components.SteamLibraryDialog
 import com.uyen.launcher.presentation.home.components.TopNavigationBar
@@ -91,6 +97,8 @@ fun HomeScreen(
 
     val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
     val isLibraryOpen by viewModel.isLibraryOpen.collectAsState()
+    val isCardManagerOpen by viewModel.isCardManagerOpen.collectAsState()
+    val pinnedGameIds by viewModel.pinnedGameIds.collectAsState()
     val isTaskSwitcherOpen by viewModel.isTaskSwitcherOpen.collectAsState()
     val isGamepadOverlayActive by viewModel.isGamepadOverlayActive.collectAsState()
     val isFullScreenControllerMode by viewModel.isFullScreenControllerMode.collectAsState()
@@ -152,6 +160,9 @@ fun HomeScreen(
             .fillMaxSize()
             .background(BackgroundDark)
     ) {
+        // 遊戲海報拼貼矩陣底層 (附圖 2 風格：暗色微傾斜遊戲海報拼貼，賦予主機頂級景深)
+        GamePosterWallBackdrop(games = games)
+
         // 動態景深背景 (根據選中遊戲呈現平滑色彩渲染，保持 PS5 沉浸質感)
         Crossfade(targetState = currentGame?.category, label = "bg_crossfade") { cat ->
             Box(
@@ -216,7 +227,11 @@ fun HomeScreen(
                 label = "tab_content_anim"
             ) { tab ->
                 val tabGames = when (tab) {
-                    com.uyen.launcher.data.model.MainNavTab.HOME -> games
+                    com.uyen.launcher.data.model.MainNavTab.HOME -> {
+                        val gameMap = games.associateBy { it.id }
+                        val pinned = pinnedGameIds.mapNotNull { gameMap[it] }
+                        if (pinned.isNotEmpty()) pinned else games.take(5)
+                    }
                     com.uyen.launcher.data.model.MainNavTab.STREAMING -> games.filter {
                         it.category == com.uyen.launcher.data.model.GameCategory.STREAMING || it.id == "controller_mode"
                     }
@@ -235,23 +250,27 @@ fun HomeScreen(
                 ) {
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // 中央 Hero Banner 遊戲大圖與詳情 (PS5 質感呈現)
+                    // 中央 Hero Banner 遊戲大圖與詳情 (PS5 質感大氣字型，去按鈕化)
                     if (tabCurrentGame != null) {
                         HeroBanner(
-                            game = tabCurrentGame,
-                            onLaunch = { viewModel.launchGame(tabCurrentGame) }
+                            game = tabCurrentGame
                         )
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // 底部 90Hz 水平輪播卡片列 (LevelUp 附圖 2 風格)
+                    // 底部 90Hz 水平輪播卡片列 (首頁預設展示 5 張自定義卡片，末尾提供「+ 添加」膠囊)
                     if (tabGames.isNotEmpty()) {
                         GameCarousel(
                             games = tabGames,
                             selectedIndex = tabIndex,
                             onSelectGame = { viewModel.selectGame(it) },
-                            onLaunchGame = { viewModel.launchGame(it) }
+                            onLaunchGame = { viewModel.launchGame(it) },
+                            showAddCard = tab == com.uyen.launcher.data.model.MainNavTab.HOME,
+                            onAddCardClick = { viewModel.setCardManagerOpen(true) },
+                            onRemoveGame = if (tab == com.uyen.launcher.data.model.MainNavTab.HOME) {
+                                { game -> viewModel.unpinGameFromHome(game.id) }
+                            } else null
                         )
                     }
 
@@ -344,6 +363,8 @@ fun HomeScreen(
         SteamLibraryDialog(
             visible = isLibraryOpen,
             games = games,
+            pinnedGameIds = pinnedGameIds,
+            onTogglePin = { viewModel.togglePinGame(it) },
             onLaunchGame = { viewModel.launchGame(it) },
             onClose = { viewModel.setLibraryOpen(false) }
         )
@@ -421,6 +442,15 @@ fun HomeScreen(
             onClose = { viewModel.setAccountDialogOpen(false) }
         )
 
+        // 首頁輪播卡片自定義管理彈窗 (從收藏庫添加/移除卡片)
+        HomeCardManagerDialog(
+            visible = isCardManagerOpen,
+            allGames = games,
+            pinnedGameIds = pinnedGameIds,
+            onTogglePin = { viewModel.togglePinGame(it) },
+            onClose = { viewModel.setCardManagerOpen(false) }
+        )
+
         // 內建 8-bit 太空突擊懷舊街機 (90Hz Smooth Canvas Mini-Game)
         if (isRetroArcadeOpen) {
             RetroArcadeScreen(
@@ -462,5 +492,63 @@ fun HomeScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * 遊戲海報矩陣背景牆 (附圖 2 風格：暗化微傾斜遊戲拼貼背景，呈現主機沉浸景深)
+ */
+@Composable
+private fun GamePosterWallBackdrop(
+    games: List<GameItem>,
+    modifier: Modifier = Modifier
+) {
+    val sampleGames = remember(games) { games.take(16) }
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .clipToBounds()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .rotate(-5f)
+                .scale(1.15f)
+                .alpha(0.08f),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            repeat(3) { row ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    sampleGames.shuffled(java.util.Random(row * 42L)).forEach { game ->
+                        Box(
+                            modifier = Modifier
+                                .width(120.dp)
+                                .height(80.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(AppIconUtil.getArtworkGradient(game))
+                        )
+                    }
+                }
+            }
+        }
+
+        // 滿版深色徑向暗角
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color(0xCC090C15),
+                            Color(0xF8090C15)
+                        ),
+                        radius = 1100f
+                    )
+                )
+        )
     }
 }

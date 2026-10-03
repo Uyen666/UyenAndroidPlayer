@@ -51,7 +51,7 @@ import com.uyen.launcher.presentation.theme.TextSecondary
 @Composable
 fun HeroBanner(
     game: GameItem,
-    onLaunch: () -> Unit,
+    onLaunch: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     AnimatedContent(
@@ -70,106 +70,75 @@ fun HeroBanner(
         label = "hero_anim",
         modifier = modifier
     ) { targetGame ->
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 36.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 36.dp, vertical = 6.dp)
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
+            // 類別標籤與標籤徽章
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // 類別標籤與標籤徽章
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Ps5Blue.copy(alpha = 0.35f))
+                        .padding(horizontal = 9.dp, vertical = 3.5.dp)
                 ) {
+                    Text(
+                        text = targetGame.category.displayName,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SteamDeckAccent
+                    )
+                }
+
+                targetGame.tags.forEach { tag ->
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Ps5Blue.copy(alpha = 0.3f))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = targetGame.category.displayName,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SteamDeckAccent
-                        )
-                    }
-
-                    targetGame.tags.forEach { tag ->
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color.White.copy(alpha = 0.08f))
-                                .padding(horizontal = 7.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = tag,
-                                fontSize = 10.sp,
-                                color = TextMuted
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // 遊戲大標題
-                Text(
-                    text = targetGame.title,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Black,
-                    color = TextPrimary
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // 副標題與遊玩時間
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = targetGame.subtitle,
-                        fontSize = 13.sp,
-                        color = TextSecondary
-                    )
-                    if (targetGame.playTimeHours > 0) {
-                        Text(
-                            text = " • 已遊玩 ${String.format("%.1f", targetGame.playTimeHours)} 小時",
-                            fontSize = 12.sp,
-                            color = AccentGold
+                            text = tag,
+                            fontSize = 10.5.sp,
+                            color = TextMuted
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // 開始遊戲大按鈕 (PS5 經典發光按鈕)
-            Button(
-                onClick = onLaunch,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Ps5Blue
-                ),
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.height(52.dp)
+            // 遊戲大標題 (主機級極致黑體字型)
+            Text(
+                text = targetGame.title,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Black,
+                color = TextPrimary,
+                letterSpacing = 0.4.sp
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // 副標題與遊玩時間
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Play",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "開始遊戲",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    text = targetGame.subtitle,
+                    fontSize = 13.sp,
+                    color = TextSecondary
                 )
+                if (targetGame.playTimeHours > 0) {
+                    Text(
+                        text = " • 已遊玩 ${String.format("%.1f", targetGame.playTimeHours)} 小時",
+                        fontSize = 12.sp,
+                        color = AccentGold
+                    )
+                }
             }
         }
     }

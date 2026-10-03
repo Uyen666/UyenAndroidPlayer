@@ -5,10 +5,12 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SportsEsports
@@ -69,12 +72,16 @@ import com.uyen.launcher.presentation.theme.TextMuted
 import com.uyen.launcher.presentation.theme.TextPrimary
 import com.uyen.launcher.presentation.theme.TextSecondary
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GameCarousel(
     games: List<GameItem>,
     selectedIndex: Int,
     onSelectGame: (Int) -> Unit,
     onLaunchGame: (GameItem) -> Unit,
+    showAddCard: Boolean = true,
+    onAddCardClick: () -> Unit = {},
+    onRemoveGame: ((GameItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -145,8 +152,16 @@ fun GameCarousel(
                     } else {
                         onSelectGame(index)
                     }
-                }
+                },
+                onLongClick = onRemoveGame?.let { removeFn -> { removeFn(game) } }
             )
+        }
+
+        // 末尾快捷添加卡片 (附圖 2 風格：引導玩家從收藏庫選取並添加卡片到首頁)
+        if (showAddCard) {
+            item {
+                AddShortcutCard(onClick = onAddCardClick)
+            }
         }
     }
 }
@@ -194,15 +209,14 @@ private fun getLevelUpCardBrush(game: GameItem): Brush {
     }
 }
 
-/**
- * LevelUp 原生掌機長方形膠囊卡片 (附圖 2：左側標題與類別徽章，右側長方圖標與封面)
- */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GameCard(
     game: GameItem,
     isSelected: Boolean,
     scale: Float,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
     val cardShape = RoundedCornerShape(16.dp)
     val appIcon = rememberAppIcon(game.packageName)
@@ -235,10 +249,11 @@ private fun GameCard(
                 },
                 shape = cardShape
             )
-            .clickable(
+            .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = onClick
+                onClick = onClick,
+                onLongClick = onLongClick
             )
     ) {
         // 微光磨砂半透明遮罩層
@@ -371,6 +386,66 @@ private fun GameCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.18f))
+            )
+        }
+    }
+}
+
+/**
+ * 末尾快捷「+ 添加卡片」膠囊 (附圖 2 風格：引導玩家從收藏庫挑選遊戲釘選到首頁)
+ */
+@Composable
+private fun AddShortcutCard(
+    onClick: () -> Unit
+) {
+    val cardShape = RoundedCornerShape(16.dp)
+    Box(
+        modifier = Modifier
+            .width(88.dp)
+            .height(74.dp)
+            .clip(cardShape)
+            .background(Color.White.copy(alpha = 0.08f))
+            .border(
+                width = 1.2.dp,
+                brush = Brush.linearGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.35f),
+                        Color.White.copy(alpha = 0.12f)
+                    )
+                ),
+                shape = cardShape
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "添加卡片",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "添加卡片",
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFCBD5E1)
             )
         }
     }
