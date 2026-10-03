@@ -154,9 +154,9 @@ class GlobalConsoleEdgeService : Service() {
     private fun setupOverlayView() {
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        val dp14 = dpToPx(14)
-        val dp44 = dpToPx(44)
-        val dp74 = dpToPx(74)
+        val dp7 = dpToPx(7)   // 使用者要求嚴格 7dp 視覺寬度，精簡不突兀
+        val dp36 = dpToPx(36) // 36dp 觸控熱區，向內撥動或點擊皆極其滑順
+        val dp56 = dpToPx(56) // 56dp 舒適高度
 
         // 根佈局
         rootView = FrameLayout(this).apply {
@@ -164,49 +164,45 @@ class GlobalConsoleEdgeService : Service() {
             clipToPadding = false
         }
 
-        // 1. 常態收合狀態：右側邊緣電競青色質感拉把 (14dp 視覺寬度，附帶 ◀ 標籤，44dp 寬熱區防誤觸且易於滑出)
+        // 1. 常態收合狀態：右側邊緣電競質感微型指示條 (嚴格 7dp 視覺寬度，微光霓虹收邊，無冗餘符號)
         collapsedHandle = FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
 
-            val handleTab = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
+            val handleTab = View(context).apply {
                 val bg = GradientDrawable().apply {
-                    setColor(Color.parseColor("#F00F172A")) // 深色掌機金屬質感
-                    setStroke(dpToPx(2), Color.parseColor("#00E5FF")) // 電競霓虹青色
+                    setColor(Color.parseColor("#E60F172A")) // 深色掌機黑曜石金屬質感 (90% alpha)
+                    setStroke(dpToPx(1), Color.parseColor("#8000E5FF")) // 1dp 雅緻電競霓虹青色收邊
+                    val radius = dp7.toFloat() * 0.5f
                     cornerRadii = floatArrayOf(
-                        dpToPx(10).toFloat(), dpToPx(10).toFloat(), // 左上
-                        0f, 0f,                                     // 右上
-                        0f, 0f,                                     // 右下
-                        dpToPx(10).toFloat(), dpToPx(10).toFloat()  // 左下
+                        radius, radius, // 左上圓角
+                        0f, 0f,         // 右上平直靠邊
+                        0f, 0f,         // 右下平直靠邊
+                        radius, radius  // 左下圓角
                     )
                 }
                 background = bg
-
-                val tvArrow = TextView(context).apply {
-                    text = "◀"
-                    setTextColor(Color.parseColor("#00E5FF"))
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                    typeface = Typeface.DEFAULT_BOLD
-                    gravity = Gravity.CENTER
-                }
-                addView(tvArrow, LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ))
             }
 
-            val tabParams = FrameLayout.LayoutParams(dp14, dp74).apply {
+            val tabParams = FrameLayout.LayoutParams(dp7, dp56).apply {
                 gravity = Gravity.CENTER_VERTICAL or Gravity.END
             }
             addView(handleTab, tabParams)
 
+            var startX = 0f
             setOnTouchListener { _, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
+                        startX = event.rawX
                         triggerHaptic()
                         expandCapsule()
+                        true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!isExpanded && (startX - event.rawX) > dpToPx(6)) {
+                            triggerHaptic()
+                            expandCapsule()
+                        }
                         true
                     }
                     else -> false
@@ -276,7 +272,7 @@ class GlobalConsoleEdgeService : Service() {
             gravity = Gravity.CENTER_VERTICAL or Gravity.END
         }
 
-        rootView?.addView(collapsedHandle, FrameLayout.LayoutParams(dp44, dp74).apply {
+        rootView?.addView(collapsedHandle, FrameLayout.LayoutParams(dp36, dp56).apply {
             gravity = Gravity.CENTER_VERTICAL or Gravity.END
         })
         rootView?.addView(expandedCapsule, rootParams)
@@ -297,8 +293,8 @@ class GlobalConsoleEdgeService : Service() {
             gravity = if (isPortrait) (Gravity.CENTER_VERTICAL or Gravity.END) else (Gravity.BOTTOM or Gravity.END)
             x = 0
             y = if (isPortrait) dpToPx(80) else dpToPx(55)
-            width = dp44
-            height = dp74
+            width = dp36
+            height = dp56
         }
         overlayLayoutParams = layoutParams
 
@@ -381,8 +377,8 @@ class GlobalConsoleEdgeService : Service() {
         expandedCapsule?.visibility = View.GONE
         collapsedHandle?.visibility = View.VISIBLE
         overlayLayoutParams?.let { params ->
-            params.width = dpToPx(44)
-            params.height = dpToPx(74)
+            params.width = dpToPx(36)
+            params.height = dpToPx(56)
             try {
                 windowManager?.updateViewLayout(rootView, params)
             } catch (_: Exception) {}

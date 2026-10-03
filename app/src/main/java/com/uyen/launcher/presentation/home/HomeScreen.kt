@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.uyen.launcher.data.model.GameItem
 import com.uyen.launcher.presentation.controller.TouchGamepadOverlay
-import com.uyen.launcher.presentation.home.components.AutoHideEdgeHandle
 import com.uyen.launcher.presentation.home.components.BottomControlBar
 import com.uyen.launcher.presentation.home.components.EmulatorAssistantDialog
 import com.uyen.launcher.presentation.home.components.GameCarousel
@@ -100,19 +99,23 @@ fun HomeScreen(
     val boostMessage by viewModel.boostMessage.collectAsState()
     val currentGame = displayGames.getOrNull(selectedIndex) ?: displayGames.firstOrNull()
 
-    // Google Sign-In 官方登入與獲取頭像照片 Launcher
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        viewModel.handleGoogleSignInResult(result.data)
-    }
-
     // 本機相簿自選個人相片 Launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
             viewModel.updateCustomAvatar(uri.toString())
+        }
+    }
+
+    // Google Sign-In 官方登入與獲取頭像照片 Launcher
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.handleGoogleSignInResult(result.data) {
+            try {
+                photoPickerLauncher.launch("image/*")
+            } catch (_: Exception) {}
         }
     }
 
@@ -216,18 +219,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
         }
-
-        // 掌機極簡自動隱藏邊緣側邊小條 (Auto-hide Drawer Handle)
-        // 螢幕右側邊緣僅留 3.5dp 微光線條，點擊/向內撥動滑出微型藥丸膠囊，3秒無操作自動隱藏
-        AutoHideEdgeHandle(
-            onBack = { viewModel.handleBack() },
-            onHome = { viewModel.handleHome() },
-            onTasks = { viewModel.setTaskSwitcherOpen(true) },
-            onOpenSettings = { viewModel.setSettingsOpen(true) },
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 1.dp)
-        )
 
         // 螢幕最左側邊緣手勢偵測：向右滑動平滑展開控制台
         Box(

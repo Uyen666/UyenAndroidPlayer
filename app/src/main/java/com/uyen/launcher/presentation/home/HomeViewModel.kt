@@ -5,6 +5,7 @@ import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.uyen.launcher.core.account.GoogleAccountManager
@@ -192,24 +193,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         return GoogleAccountManager.getGoogleSignInIntent(getApplication())
     }
 
-    fun handleGoogleSignInResult(data: Intent?) {
+    fun handleGoogleSignInResult(data: Intent?, onFallback: () -> Unit = {}) {
         val app = getApplication<Application>()
         val photoUrl = GoogleAccountManager.handleGoogleSignInResult(app, data)
         if (photoUrl != null) {
             refreshGoogleAccounts()
             boostPerformance("已同步 Google 帳號相片！")
         } else {
-            boostPerformance("Google 登入或相片獲取完成")
-            refreshGoogleAccounts()
+            boostPerformance("提示：雲端登入需後端金鑰，已為您開啟相簿選取照片")
+            onFallback()
         }
     }
 
-    fun updateCustomAvatar(uri: String?) {
+    fun updateCustomAvatar(uriString: String?) {
         val app = getApplication<Application>()
         val currentEmail = _googleAccount.value.email
-        GoogleAccountManager.saveAvatarUrl(app, currentEmail, uri)
+        val sourceUri = uriString?.let { Uri.parse(it) }
+        GoogleAccountManager.saveCustomAvatarFromUri(app, currentEmail, sourceUri)
         refreshGoogleAccounts()
-        boostPerformance(if (uri != null) "已更新個人相片！" else "已重設個人相片")
+        boostPerformance(if (uriString != null) "已更新個人相片！" else "已重設個人相片")
     }
 
     fun isOverlayPermissionGranted(): Boolean {

@@ -5,6 +5,7 @@ import android.accounts.AccountManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.ContactsContract
 import android.provider.Settings
 import android.util.Log
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -12,6 +13,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.uyen.launcher.data.model.GoogleAccount
+import java.io.File
 
 /**
  * 掌機真實 Google 帳號讀取、照片頭像同步與系統管理中心
@@ -42,8 +44,17 @@ object GoogleAccountManager {
                 val displayPrefix = email.substringBefore("@")
                 val capitalizedName = displayPrefix.replaceFirstChar { it.uppercase() }
                 
-                // 優先讀取使用者自訂/同步的頭像照片，次要讀取 GoogleSignIn 緩存照片
-                val savedAvatar = prefs.getString(KEY_AVATAR_PREFIX + email.lowercase(), null)
+                // 優先級：
+                // 1. 本地沙盒永久快照檔案 (最穩定可靠，無 Uri 權限過期風險)
+                // 2. 使用者自訂/同步儲存的 URL / URI
+                // 3. 系統聯絡人與個人資料卡片 (ContactsContract) 照片
+                // 4. GoogleSignIn 本機緩存照片
+                val localAvatarFile = File(context.filesDir, "avatar_${email.lowercase().hashCode()}.png")
+                val localAvatarUri = if (localAvatarFile.exists()) Uri.fromFile(localAvatarFile).toString() else null
+
+                val savedAvatar = localAvatarUri
+                    ?: prefs.getString(KEY_AVATAR_PREFIX + email.lowercase(), null)
+                    ?: getContactPhotoForEmail(context, email)
                     ?: lastGooglePhoto
 
                 accountList.add(
@@ -74,6 +85,75 @@ object GoogleAccountManager {
                 remove(KEY_AVATAR_PREFIX + email.lowercase())
             }
         }.apply()
+    }
+
+    /**
+     * 從 Content Uri 或 相簿 Uri 複製並持久化為本機檔案 (永久不會失效、離線可用)
+     */
+    fun saveCustomAvatarFromUri(context: Context, email: String, sourceUri: Uri?): String? {
+        val targetFile = File(context.filesDir, "avatar_${email.lowercase().hashCode()}.png")
+        if (sourceUri == null) {
+            if (targetFile.exists()) {
+                targetFile.delete()
+            }
+            saveAvatarUrl(context, email, null)
+            return null
+        }
+        return try {
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                targetFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            val localUri = Uri.fromFile(targetFile).toString()
+            saveAvatarUrl(context, email, localUri)
+            localUri
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to persist custom avatar: ${e.message}")
+            saveAvatarUrl(context, email, sourceUri.toString())
+            sourceUri.toString()
+        }
+    }
+
+    /**
+     * 嘗試從系統聯絡人或個人 Profile 讀取照片
+     */
+    fun getContactPhotoForEmail(context: Context, email: String): String? {
+        return try {
+            // 1. 查詢 個人 Profile 照片
+            val profilePhotoUri = Uri.withAppendedPath(
+                ContactsContract.Profile.CONTENT_URI,
+                ContactsContract.Contacts.Photo.CONTENT_DIRECTORY
+            )
+            context.contentResolver.query(
+                profilePhotoUri,
+                arrayOf(ContactsContract.Contacts.Photo.PHOTO),
+                null, null, null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    return profilePhotoUri.toString()
+                }
+            }
+
+            // 2. 查詢該 Email 對應之聯絡人
+            val emailLookupUri = Uri.withAppendedPath(
+                ContactsContract.CommonDataKinds.Email.CONTENT_LOOKUP_URI,
+                Uri.encode(email)
+            )
+            context.contentResolver.query(
+                emailLookupUri,
+                arrayOf(ContactsContract.CommonDataKinds.Email.PHOTO_URI),
+                null, null, null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val uriStr = cursor.getString(0)
+                    if (!uriStr.isNullOrEmpty()) return uriStr
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
     }
 
     /**

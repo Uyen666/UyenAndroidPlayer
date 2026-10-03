@@ -231,47 +231,83 @@ fun GoogleAccountDialog(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // 頭像相片專屬管理排 (滿足使用者展示 Google 真實相片之需求)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF1E2130))
+                            .padding(10.dp)
                     ) {
-                        OutlinedButton(
-                            onClick = onSyncGooglePhoto,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Sync,
-                                contentDescription = "同步 Google 照片",
-                                modifier = Modifier.size(13.dp),
-                                tint = Ps5Blue
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "同步Google相片", fontSize = 11.sp, color = TextPrimary)
-                        }
+                        Text(
+                            text = "💡 Google 頭像相片設定：",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AccentGold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "可直接從【Google 相簿】或【系統相簿】選取您的 Google 個人相片，本機會自動永久快照並呈現於右上角與此視窗。",
+                            fontSize = 10.sp,
+                            color = TextMuted,
+                            lineHeight = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                        OutlinedButton(
-                            onClick = onPickCustomPhoto,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PersonAdd,
-                                contentDescription = "相簿選取照片",
-                                modifier = Modifier.size(13.dp),
-                                tint = AccentGold
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "相簿選取相片", fontSize = 11.sp, color = AccentGold)
-                        }
-
-                        if (!currentAccount.avatarUrl.isNullOrEmpty()) {
-                            OutlinedButton(
-                                onClick = onClearCustomPhoto,
+                            Button(
+                                onClick = onPickCustomPhoto,
                                 shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.width(70.dp)
+                                colors = ButtonDefaults.buttonColors(containerColor = Ps5Blue),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Text(text = "重設", fontSize = 11.sp, color = TextSecondary)
+                                Icon(
+                                    imageVector = Icons.Default.PersonAdd,
+                                    contentDescription = "選取相片",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "📷 從 Google 相簿 / 圖庫選取照片",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onSyncGooglePhoto,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = "雲端同步",
+                                    modifier = Modifier.size(13.dp),
+                                    tint = TextSecondary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = "Google 雲端登入同步", fontSize = 11.sp, color = TextPrimary)
+                            }
+
+                            if (!currentAccount.avatarUrl.isNullOrEmpty()) {
+                                OutlinedButton(
+                                    onClick = onClearCustomPhoto,
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.width(76.dp)
+                                ) {
+                                    Text(text = "重設", fontSize = 11.sp, color = Color(0xFFEF4444))
+                                }
                             }
                         }
                     }
