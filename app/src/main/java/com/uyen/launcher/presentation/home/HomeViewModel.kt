@@ -6,10 +6,12 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.uyen.launcher.core.account.GoogleAccountManager
 import com.uyen.launcher.core.hardware.MemoryCleaner
 import com.uyen.launcher.core.hardware.PerformanceMonitor
 import com.uyen.launcher.core.hardware.SystemControlManager
 import com.uyen.launcher.core.kiosk.ConsoleLockManager
+import com.uyen.launcher.core.service.GlobalConsoleEdgeService
 import com.uyen.launcher.core.util.SoundManager
 import com.uyen.launcher.data.model.GameCategory
 import com.uyen.launcher.data.model.GameItem
@@ -62,9 +64,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    // Google 帳號狀態與彈窗
-    private val _googleAccount = MutableStateFlow(GoogleAccount())
+    // 真實 Google 帳號狀態與可用帳號列表
+    private val _googleAccount = MutableStateFlow(GoogleAccountManager.getActiveGoogleAccount(application))
     val googleAccount: StateFlow<GoogleAccount> = _googleAccount.asStateFlow()
+
+    private val _availableGoogleAccounts = MutableStateFlow(GoogleAccountManager.getGoogleAccounts(application))
+    val availableGoogleAccounts: StateFlow<List<GoogleAccount>> = _availableGoogleAccounts.asStateFlow()
 
     private val _isAccountDialogOpen = MutableStateFlow(false)
     val isAccountDialogOpen: StateFlow<Boolean> = _isAccountDialogOpen.asStateFlow()
@@ -128,6 +133,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         performanceMonitor.startMonitoring(viewModelScope)
+        GlobalConsoleEdgeService.start(application)
+        refreshGoogleAccounts()
         viewModelScope.launch {
             gameRepository.scanInstalledApps()
             gameRepository.scanLocalRomFiles()
@@ -156,9 +163,34 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         selectTab(tabs[prevIdx])
     }
 
+    fun refreshGoogleAccounts() {
+        val app = getApplication<Application>()
+        _availableGoogleAccounts.value = GoogleAccountManager.getGoogleAccounts(app)
+        _googleAccount.value = GoogleAccountManager.getActiveGoogleAccount(app)
+    }
+
+    fun switchGoogleAccount(account: GoogleAccount) {
+        val app = getApplication<Application>()
+        GoogleAccountManager.saveActiveGoogleAccount(app, account.email)
+        _googleAccount.value = account
+        viewModelScope.launch {
+            soundManager.playClick()
+            boostPerformance("已切換帳號：${account.email}")
+        }
+    }
+
+    fun openManageSystemAccounts() {
+        GoogleAccountManager.openManageAccountSettings(getApplication())
+    }
+
+    fun openAddGoogleAccount() {
+        GoogleAccountManager.openAddGoogleAccount(getApplication())
+    }
+
     fun setAccountDialogOpen(open: Boolean) {
         _isAccountDialogOpen.value = open
         if (open) {
+            refreshGoogleAccounts()
             viewModelScope.launch {
                 soundManager.playClick()
             }
@@ -171,6 +203,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             boostPerformance("已重新整理遊戲庫與本機 ROM")
             gameRepository.scanInstalledApps()
             gameRepository.scanLocalRomFiles()
+            refreshGoogleAccounts()
         }
     }
 
@@ -238,6 +271,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             soundManager.playConfirmSound()
         }
+        // 確保右下角全局懸浮返回/主頁小條已運行，防止進遊戲後回不來
+        GlobalConsoleEdgeService.start(getApplication())
+
         when (item.id) {
             "controller_mode" -> {
                 _isFullScreenControllerMode.value = true

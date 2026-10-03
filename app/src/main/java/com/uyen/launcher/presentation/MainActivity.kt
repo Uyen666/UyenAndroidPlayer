@@ -58,11 +58,14 @@ class MainActivity : ComponentActivity() {
 
         // 於 View 結構初始化後安全隱藏系統列
         SystemBarUtil.hideSystemBars(this)
+        com.uyen.launcher.core.service.GlobalConsoleEdgeService.start(this)
     }
 
     override fun onResume() {
         super.onResume()
         SystemBarUtil.hideSystemBars(this)
+        com.uyen.launcher.core.service.GlobalConsoleEdgeService.start(this)
+        homeViewModel.refreshGoogleAccounts()
         homeViewModel.checkDeviceOwnerState()
         val prefs = getSharedPreferences("uyen_launcher_ui_prefs", MODE_PRIVATE)
         if (prefs.getBoolean("kiosk_auto_lock", true) &&
@@ -70,6 +73,16 @@ class MainActivity : ComponentActivity() {
             !ConsoleLockManager.isLockTaskActive(this)
         ) {
             ConsoleLockManager.enableConsoleLock(this)
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("OPEN_TASK_SWITCHER", false)) {
+            homeViewModel.setTaskSwitcherOpen(true)
+        } else {
+            homeViewModel.handleHome()
         }
     }
 

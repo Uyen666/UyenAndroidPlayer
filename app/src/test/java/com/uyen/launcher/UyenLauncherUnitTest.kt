@@ -211,4 +211,30 @@ class UyenLauncherUnitTest {
         assertTrue(handheldGames.any { it.id == "galgame_item" })
         assertTrue(handheldGames.any { it.id == "retro_item" })
     }
+
+    @Test
+    fun testGoogleAccountCustomDisplay() {
+        val email = "rock941103@gmail.com"
+        val prefix = email.substringBefore("@")
+        val displayName = prefix.replaceFirstChar { it.uppercase() }
+        val account = com.uyen.launcher.data.model.GoogleAccount(
+            email = email,
+            displayName = displayName,
+            isConnected = true
+        )
+
+        assertEquals("rock941103@gmail.com", account.email)
+        assertEquals("Rock941103", account.displayName)
+        assertTrue(account.isConnected)
+    }
+
+    @Test
+    fun testAccessibilityServiceSafetyWhenDisconnected() {
+        // 服務未連線時不拋出異常並回傳 false
+        val backHandled = com.uyen.launcher.core.service.UyenConsoleAccessibilityService.performBack()
+        assertFalse(backHandled)
+
+        val homeHandled = com.uyen.launcher.core.service.UyenConsoleAccessibilityService.performHome()
+        assertFalse(homeHandled)
+    }
 }

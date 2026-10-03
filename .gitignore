@@ -79,3 +79,5 @@ scratch/
 tmp/
 *.tmp
 *.bak
+screen_*.png
+captures/

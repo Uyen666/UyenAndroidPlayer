@@ -3,8 +3,6 @@ package com.uyen.launcher.presentation.home.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,13 +18,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,11 +43,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.uyen.launcher.data.model.GoogleAccount
+import com.uyen.launcher.presentation.theme.AccentGold
 import com.uyen.launcher.presentation.theme.AccentGreen
-import com.uyen.launcher.presentation.theme.GlassBackground
 import com.uyen.launcher.presentation.theme.GlassBorder
 import com.uyen.launcher.presentation.theme.Ps5Blue
 import com.uyen.launcher.presentation.theme.TextMuted
@@ -54,12 +56,16 @@ import com.uyen.launcher.presentation.theme.TextPrimary
 import com.uyen.launcher.presentation.theme.TextSecondary
 
 /**
- * Google 帳號與雲端存檔同步彈窗 (Google Account & Play Games Cloud Sync Dialog)
+ * Google 帳號與系統管理中心彈窗 (Google Account & System Management Modal)
  */
 @Composable
 fun GoogleAccountDialog(
     visible: Boolean,
-    account: GoogleAccount,
+    currentAccount: GoogleAccount,
+    availableAccounts: List<GoogleAccount>,
+    onSelectAccount: (GoogleAccount) -> Unit,
+    onManageSystemAccounts: () -> Unit,
+    onAddAccount: () -> Unit,
     onSyncNow: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -82,25 +88,25 @@ fun GoogleAccountDialog(
         ) {
             Box(
                 modifier = Modifier
-                    .width(420.dp)
+                    .width(460.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF161622))
+                    .background(Color(0xFF141624))
                     .border(1.5.dp, GlassBorder, RoundedCornerShape(24.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
-                    ) { /* 攔截點擊 */ }
-                    .padding(24.dp)
+                    ) { /* 攔截內部點擊事件 */ }
+                    .padding(22.dp)
             ) {
                 Column {
-                    // 標題欄
+                    // 標題列
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Google 四色圓點標識
+                            // Google 四色圓點
                             Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF4285F4)))
                                 Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(Color(0xFFEA4335)))
@@ -109,7 +115,7 @@ fun GoogleAccountDialog(
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Google 遊戲帳號",
+                                text = "Google 遊戲帳號與存檔管理",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
@@ -129,22 +135,22 @@ fun GoogleAccountDialog(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // 帳號資訊卡片
+                    // 當前主作用帳號卡片
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color.White.copy(alpha = 0.05f))
-                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                            .padding(16.dp),
+                            .background(Color.White.copy(alpha = 0.06f))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                            .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Google 多彩圓環頭像
                         Box(
                             modifier = Modifier
-                                .size(52.dp)
+                                .size(48.dp)
                                 .clip(CircleShape)
                                 .border(
                                     width = 2.5.dp,
@@ -163,92 +169,188 @@ fun GoogleAccountDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = account.displayName.take(1).uppercase(),
-                                fontSize = 22.sp,
+                                text = currentAccount.displayName.take(1).uppercase(),
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
 
-                        Column {
-                            Text(
-                                text = account.displayName,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = currentAccount.displayName,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                if (currentAccount.isConnected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(AccentGreen.copy(alpha = 0.2f))
+                                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                                    ) {
+                                        Text(
+                                            text = "使用中",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = AccentGreen
+                                        )
+                                    }
+                                }
+                            }
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = account.email,
+                                text = currentAccount.email,
                                 fontSize = 12.sp,
-                                color = TextMuted
+                                color = TextMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    // 設備上其他已發現的 Google 帳號列表 (若有)
+                    if (availableAccounts.size > 1) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "切換設備其他 Google 帳號：",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = TextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                    // 雲端存檔狀態
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            availableAccounts.filter { it.email != currentAccount.email }.forEach { otherAcc ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.White.copy(alpha = 0.04f))
+                                        .clickable { onSelectAccount(otherAcc) }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF334155)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = otherAcc.displayName.take(1).uppercase(),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = otherAcc.email,
+                                            fontSize = 12.sp,
+                                            color = TextPrimary
+                                        )
+                                    }
+                                    Text(
+                                        text = "切換",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Ps5Blue
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 雲端存檔狀態膠囊
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(Color(0x1F22C55E))
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.CloudDone,
                             contentDescription = "雲端同步",
                             tint = AccentGreen,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Google Play Games 存檔保護中",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = AccentGreen
-                            )
-                            Text(
-                                text = account.cloudSyncStatus,
-                                fontSize = 11.sp,
-                                color = TextSecondary
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = currentAccount.cloudSyncStatus,
+                            fontSize = 11.sp,
+                            color = AccentGreen,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(22.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
-                    // 操作按鈕列
+                    // 系統級管理按鈕排 (解決「不能管理」的痛點)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // 1. 跳轉手機系統「帳號與同步」管理
+                        OutlinedButton(
+                            onClick = onManageSystemAccounts,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ManageAccounts,
+                                contentDescription = "管理帳號",
+                                modifier = Modifier.size(15.dp),
+                                tint = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "系統帳號管理", fontSize = 11.sp, color = TextPrimary)
+                        }
+
+                        // 2. 新增 Google 帳號
+                        OutlinedButton(
+                            onClick = onAddAccount,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PersonAdd,
+                                contentDescription = "新增帳號",
+                                modifier = Modifier.size(15.dp),
+                                tint = AccentGold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "新增帳號", fontSize = 11.sp, color = AccentGold)
+                        }
+
+                        // 3. 立即同步
                         Button(
                             onClick = onSyncNow,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Ps5Blue),
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Sync,
                                 contentDescription = "立即同步",
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "立即同步", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-
-                        OutlinedButton(
-                            onClick = onClose,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(text = "返回主頁", fontSize = 13.sp, color = TextPrimary)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "同步存檔", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

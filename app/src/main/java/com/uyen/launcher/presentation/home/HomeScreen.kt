@@ -64,6 +64,7 @@ fun HomeScreen(
     val selectedTab by viewModel.selectedTab.collectAsState()
     val displayGames by viewModel.currentTabGames.collectAsState()
     val googleAccount by viewModel.googleAccount.collectAsState()
+    val availableGoogleAccounts by viewModel.availableGoogleAccounts.collectAsState()
     val isAccountDialogOpen by viewModel.isAccountDialogOpen.collectAsState()
     val selectedIndex by viewModel.selectedGameIndex.collectAsState()
     val profile by viewModel.playerProfile.collectAsState()
@@ -307,13 +308,17 @@ fun HomeScreen(
             onClose = { viewModel.setAssistantDialogItem(null) }
         )
 
-        // Google 帳號與雲端存檔同步彈窗
+        // Google 帳號與系統管理中心彈窗
         GoogleAccountDialog(
             visible = isAccountDialogOpen,
-            account = googleAccount,
+            currentAccount = googleAccount,
+            availableAccounts = availableGoogleAccounts,
+            onSelectAccount = { viewModel.switchGoogleAccount(it) },
+            onManageSystemAccounts = { viewModel.openManageSystemAccounts() },
+            onAddAccount = { viewModel.openAddGoogleAccount() },
             onSyncNow = {
                 viewModel.boostPerformance("Google Play 雲端存檔同步完成！")
-                viewModel.setAccountDialogOpen(false)
+                viewModel.refreshGoogleAccounts()
             },
             onClose = { viewModel.setAccountDialogOpen(false) }
         )

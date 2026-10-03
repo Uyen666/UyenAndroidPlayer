@@ -32,6 +32,14 @@
     <uses-permission android:name="android.permission.REORDER_TASKS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Google Account Reading & Management -->
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+
+    <!-- Global Floating Edge Overlay across other Apps -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
     <application
         android:name=".UyenApplication"
         android:allowBackup="true"
@@ -82,6 +90,29 @@
                 <action android:name="android.app.action.PROFILE_PROVISIONING_COMPLETE" />
             </intent-filter>
         </receiver>
+
+        <!-- Global Floating Edge Service (for returning home from other games/apps) -->
+        <service
+            android:name=".core.service.GlobalConsoleEdgeService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="handheld_console_overlay_navigation" />
+        </service>
+
+        <!-- Global Console Accessibility Service for Back/Home injection in games -->
+        <service
+            android:name=".core.service.UyenConsoleAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
 
     </application>
 

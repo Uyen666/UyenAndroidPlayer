@@ -5,4 +5,6 @@
     <string name="play">開始遊戲</string>
     <string name="settings">系統設定</string>
     <string name="library">遊戲庫</string>
+    <string name="accessibility_desc">UyenLauncher 掌機邊緣懸浮膠囊無障礙服務，用於在遊戲中提供全局返回鍵操作。</string>
+    <string name="edge_service_running">掌機全局邊緣膠囊運行中</string>
 </resources>
