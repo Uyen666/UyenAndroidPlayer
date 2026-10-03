@@ -590,7 +590,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun savedGamesFolderUri(): Uri? = prefs.getString(PREF_KEY_GAMES_TREE, null)?.let(Uri::parse)
+    fun rescanGamesFolder() {
+        val uri = savedGamesFolderUri()
+        if (uri != null) {
+            viewModelScope.launch {
+                soundManager.playConfirmSound()
+                boostPerformance("正在重新掃描遊戲目錄...")
+                gameRepository.scanLocalRomFiles(uri)
+                boostPerformance("遊戲目錄重新掃描完成！")
+            }
+        } else {
+            boostPerformance("尚未設定遊戲目錄，請先點選「選取目錄」")
+        }
+    }
+
+    fun savedGamesFolderUri(): Uri? = prefs.getString(PREF_KEY_GAMES_TREE, null)?.let(Uri::parse)
 
     fun launchGame(item: GameItem) {
         viewModelScope.launch {

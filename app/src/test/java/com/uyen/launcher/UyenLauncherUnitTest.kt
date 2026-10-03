@@ -8,6 +8,7 @@ import com.uyen.launcher.data.model.SystemStats
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -270,5 +271,99 @@ class UyenLauncherUnitTest {
         assertEquals(0, resultOptimal.freedMb)
         assertTrue(resultOptimal.displayMessage.contains("最佳狀態"))
         assertFalse(resultOptimal.displayMessage.contains("快取程序"))
+    }
+
+    @Test
+    fun testGalgameEngineDetectionKirikiri() {
+        val files = listOf("data.xp3", "patch.xp3", "cover.jpg", "system.xp3")
+        val engine = com.uyen.launcher.core.scanner.LocalRomScanner.detectGalgameEngine(files)
+        assertNotNull(engine)
+        assertTrue(engine!!.engineName.contains("吉里吉里"))
+        assertEquals("application/x-xp3", engine.mimeType)
+        assertTrue(engine.tags.contains("Kirikiri"))
+    }
+
+    @Test
+    fun testGalgameEngineDetectionRenPy() {
+        val files = listOf("game.rpa", "options.rpy", "cover.png")
+        val engine = com.uyen.launcher.core.scanner.LocalRomScanner.detectGalgameEngine(files)
+        assertNotNull(engine)
+        assertTrue(engine!!.engineName.contains("Ren'Py"))
+        assertEquals("application/x-rpa", engine.mimeType)
+        assertTrue(engine.tags.contains("Ren'Py"))
+    }
+
+    @Test
+    fun testGalgameEngineDetectionTyrano() {
+        val files = listOf("index.html", "tyrano.js", "data")
+        val engine = com.uyen.launcher.core.scanner.LocalRomScanner.detectGalgameEngine(files)
+        assertNotNull(engine)
+        assertTrue(engine!!.engineName.contains("Tyrano"))
+        assertEquals("text/html", engine.mimeType)
+        assertTrue(engine.tags.contains("Tyrano"))
+    }
+
+    @Test
+    fun testGalgameEngineDetectionWolfRpg() {
+        val files = listOf("Game.exe", "data.wolf", "folder.jpg")
+        val engine = com.uyen.launcher.core.scanner.LocalRomScanner.detectGalgameEngine(files)
+        assertNotNull(engine)
+        assertTrue(engine!!.engineName.contains("Wolf RPG"))
+        assertEquals("application/x-msdos-program", engine.mimeType)
+    }
+
+    @Test
+    fun testGalgameEngineDetectionNegative() {
+        val files = listOf("document.txt", "video.mp4", "music.mp3")
+        val engine = com.uyen.launcher.core.scanner.LocalRomScanner.detectGalgameEngine(files)
+        assertNull(engine)
+    }
+
+    @Test
+    fun testCoverFileNameRecognition() {
+        assertTrue(com.uyen.launcher.core.scanner.LocalRomScanner.isCoverFileName("cover.jpg"))
+        assertTrue(com.uyen.launcher.core.scanner.LocalRomScanner.isCoverFileName("Cover.PNG"))
+        assertTrue(com.uyen.launcher.core.scanner.LocalRomScanner.isCoverFileName("folder.jpg"))
+        assertTrue(com.uyen.launcher.core.scanner.LocalRomScanner.isCoverFileName("POSTER.webp"))
+        assertTrue(com.uyen.launcher.core.scanner.LocalRomScanner.isCoverFileName("thumb.jpg"))
+        assertTrue(com.uyen.launcher.core.scanner.LocalRomScanner.isCoverFileName("front_cover.jpeg"))
+
+        assertFalse(com.uyen.launcher.core.scanner.LocalRomScanner.isCoverFileName("data.xp3"))
+        assertFalse(com.uyen.launcher.core.scanner.LocalRomScanner.isCoverFileName("readme.txt"))
+        assertFalse(com.uyen.launcher.core.scanner.LocalRomScanner.isCoverFileName("bg_01.jpg"))
+    }
+
+    @Test
+    fun testFormatGameSize() {
+        val gbStr = com.uyen.launcher.core.scanner.LocalRomScanner.formatGameSize(3_400_000_000L)
+        assertTrue(gbStr.contains("GB"))
+
+        val mbStr = com.uyen.launcher.core.scanner.LocalRomScanner.formatGameSize(250_000_000L)
+        assertTrue(mbStr.contains("MB"))
+
+        val zeroStr = com.uyen.launcher.core.scanner.LocalRomScanner.formatGameSize(0L)
+        assertEquals("", zeroStr)
+    }
+
+    @Test
+    fun testGalgameItemCreationAndAttributes() {
+        val game = GameItem(
+            id = "local_dir:senren_banka",
+            title = "千戀萬花",
+            subtitle = "吉里吉里 2/Z (Kirikiri) • 3.2 GB",
+            category = GameCategory.GALGAME,
+            launchIntentUri = "content://launch_target",
+            mimeType = "application/x-xp3",
+            coverUrl = "content://cover_jpg",
+            bannerUrl = "content://cover_jpg",
+            tags = listOf("Galgame", "吉里吉里", "Kirikiri")
+        )
+
+        assertEquals("local_dir:senren_banka", game.id)
+        assertEquals("千戀萬花", game.title)
+        assertEquals(GameCategory.GALGAME, game.category)
+        assertEquals("content://cover_jpg", game.coverUrl)
+        assertEquals("content://cover_jpg", game.bannerUrl)
+        assertTrue(game.tags.contains("吉里吉里"))
     }
 }

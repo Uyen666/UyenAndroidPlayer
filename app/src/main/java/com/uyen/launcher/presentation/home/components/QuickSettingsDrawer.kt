@@ -107,6 +107,7 @@ fun QuickSettingsDrawer(
     onOpenTaskSwitcher: () -> Unit,
     onCleanRam: () -> Unit,
     ramCleanMessage: String? = null,
+    onPickGamesFolder: (() -> Unit)? = null,
     onExitLauncher: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -460,6 +461,28 @@ fun QuickSettingsDrawer(
                             .border(1.dp, AccentGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                     ) {
                         Text(text = "🎮 進入 UyenController PC 手柄模式", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    if (onPickGamesFolder != null) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text = "遊戲目錄與儲存",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = onPickGamesFolder,
+                            colors = ButtonDefaults.buttonColors(containerColor = GlassBackground),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .border(1.dp, SteamDeckAccent.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                        ) {
+                            Text(text = "📁 設定 / 變更 Galgame 與 ROM 目錄", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AccentGreen)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))

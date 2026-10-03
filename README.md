@@ -1,45 +1,61 @@
 # UyenLauncher
 
-UyenLauncher 是以 Kotlin、Jetpack Compose 建置的 Android 橫向遊戲啟動器。它提供掌機風格首頁、已安裝 App 遊戲庫、本機遊戲檔案匯入、系統控制抽屜、內建 8-bit 小遊戲，以及選用的 Kiosk 與邊緣快捷列。
+UyenLauncher 是專為 Android 打造的掌機風格遊戲啟動器（以 Kotlin、Jetpack Compose 建置，最佳化適配橫向掌機模式）。它提供 PS5/SteamOS 風格的 Hero Banner 巨幅海報牆、商業級 Galgame 遊戲目錄識別、已安裝 App 聚合庫、真實記憶體清理引擎、系統控制抽屜與全局懸浮導航條。
 
-## 功能
+## 核心功能
 
-- **遊戲首頁與遊戲庫**：列出內建功能、可啟動的已安裝 App，以及使用者選取資料夾中的 `.xp3`、`.rpa`、`.ons`、`.nes`、`.fc`、`.gba`、`.sfc` 和 `.smc` 檔案。
-- **本機資料**：首頁釘選、收藏、遊戲海報設定與實際啟動遊玩時間保存在 App 私有偏好資料中。
-- **資料夾匯入**：使用 Android 系統文件選擇器授權遊戲資料夾；啟動器只讀取使用者選取的資料夾，不要求整機儲存空間存取權。
-- **掌機介面**：Compose 遊戲卡片、遊戲庫、媒體音量與視窗亮度控制，以及電池與記憶體資訊。
-- **內建街機與控制器畫面**：離線 8-bit 小遊戲和觸控手柄介面。
-- **選用系統整合**：Kiosk 鎖定與跨 App 邊緣快捷列需要使用者授權；部分鎖定能力需要 Device Owner 設定及相容裝置。
-- **Google 登入**：用於顯示目前登入的 Google 個人資料與頭像。遊戲庫和遊玩紀錄目前保存在本機，尚未提供雲端存檔同步。
+- **商業級 Galgame 整合**：
+  - **智慧目錄識別**：以遊戲子資料夾為單一實體單位，自動識別吉里吉里 2/Z（Kirikiri, `.xp3`, `startup.tjs`）、Ren'Py（`.rpa`）、TyranoBuilder（`index.html`）、RPG Maker / Wolf RPG（`data.wolf`, `Game.exe`）等主流 AVG 格式，避免同一遊戲被拆解為多個單檔碎片。
+  - **封面海報自動探測**：優先識別子資料夾內之 `cover.jpg/png`、`folder.jpg`、`poster.webp`、`thumb.png`，無縫呈現在 2:3 直式海報與 Hero Banner 呼吸高斯模糊背景。
+  - **SteamOS 收藏庫專區**：在收藏庫 GALGAME 分頁支援專屬空狀態、一鍵 SAF 資料夾授權選取、頂部重新整理/變更目錄，以及卡片右上角獨立「📌 釘選至首頁」切換。
+  - **兩段式開玩體驗**：首頁卡片第 1 次點擊滾動並聚焦（更新大海報），第 2 次點擊直接啟動遊戲。
+  - **核心引擎分發與引導**：自動探測 Tyranor、Kirikiroid2、JoiPlay 等相容核心；未安裝引擎時彈出專屬導航彈窗，提供格式說明與應用商店搜尋跳轉。
+- **掌機首頁與遊戲庫**：
+  - PS5 大氣無按鈕 Hero Banner，底層 90Hz 流暢動態呼吸微縮放與高斯模糊背景。
+  - 首頁 5 張自訂輪播卡片（支援自由增刪與長按自訂相簿海報）。
+  - SteamOS 1:1 移植全螢幕收藏庫（L1/R1 切換分頁、分類動態數量徽章、A啟動/B返回）。
+- **全系統統一掌機控制台（QuickSettingsDrawer）**：
+  - 首頁與全局跨應用懸浮抽屜（`GlobalConsoleEdgeService`）共享一致的 Compose 介面。
+  - 支援媒體音量、視窗亮度調節、Wi-Fi/藍牙跳轉、效能 HUD 開關、遊戲目錄變更與安全的二次確認退出機制。
+- **真實硬體記憶體釋放引擎（SystemMemoryManager）**：
+  - 拒絕虛假展示數字。真實採樣 Linux 核心 `ActivityManager.MemoryInfo` 可用 RAM 差值、終止目標背景應用、清理 Coil 圖片快取池與 JVM GC，動態回報清出之 MB 數。
+- **頂部中央微型效能 HUD**：
+  - 實時呈現影格率（FPS）、電池溫度、全機可用 RAM 與電量狀態，觸控完全穿透至遊戲中。
+- **本機資料與隱私保障**：
+  - 遊戲目錄透過 Storage Access Framework（SAF）由玩家明確選取並授權，不要求整機儲存空間存取權。
+  - 首頁釘選、收藏狀態、遊玩時數與自訂海報保存在 App 私有沙盒偏好資料中。
+  - Google 帳號管理支援原生帳號選取與沙盒頭像同步，預設離線訪客模式。
 
 ## 架構
 
 ```text
 app/src/main/java/com/uyen/launcher/
-├── core/                  # 系統整合、文件掃描、效能讀取、海報與音效
+├── core/                  # 系統整合、SAF 智慧掃描器、海報解析、真實 RAM 管理與全局服務
 ├── data/
-│   ├── model/             # 遊戲、帳號與畫面狀態模型
-│   └── repository/        # 已安裝 App、本機遊戲及本機遊戲庫偏好
-└── presentation/          # Activity 與 Jetpack Compose 畫面
-scripts/                   # UyenController 電腦端 UDP 接收器
+│   ├── model/             # 遊戲實體、帳號與畫面狀態模型
+│   └── repository/        # 已安裝 App、本機遊戲聚合與偏好儲存
+└── presentation/          # Activity 與 Jetpack Compose 畫面與掌機組件
+    ├── home/              # 首頁主畫面與 ViewModel
+    ├── home/components/   # SteamLibraryDialog, HeroBanner, GameCarousel, QuickSettingsDrawer 等
+    └── minigame/          # 內建離線 8-bit 太空街機 (90Hz Canvas)
 ```
 
-遊戲資料由 `GameRepository` 聚合；文件存取經由 Storage Access Framework 的 URI 權限，不使用全碟掃描。畫面狀態由 `HomeViewModel` 提供給 Compose。
+## 建置與測試
 
-## 建置
-
-需求：Android Studio、JDK 21、Android SDK 35。
+需求：JDK 21、Android SDK 35。
 
 ```powershell
+# 建置 Debug APK
 .\gradlew.bat assembleDebug
+
+# 執行全套單元測試 (31 項測試 100% 通過)
+.\gradlew.bat testDebugUnitTest
 ```
 
-Debug APK 會輸出到 `app/build/outputs/apk/debug/app-debug.apk`。PC 端接收器位於 `scripts/uyen_controller_receiver.py`，依賴列於 `scripts/requirements.txt`。
+Debug APK 輸出路徑：`app/build/outputs/apk/debug/app-debug.apk`。
 
-## 隱私與版本管理
+## 隱私與資安承諾
 
-- 不要求讀取聯絡人、整機帳號清單或所有外部儲存資料。
+- 不要求讀取聯絡人、整機檔案全盤存取或整機帳號清單。
 - 遊戲資料夾由使用者透過系統選擇器授權，授權 URI 保存在 App 私有偏好中。
-- Google 登入只讀取使用者在此 App 授權的個人資料；目前不會上傳遊戲庫或遊玩時間。
-- Android Auto Backup 已關閉；裝置移轉行為仍可能依 Android/OEM 實作而異。
-- 本機 SDK 路徑、簽章金鑰、服務設定與環境檔應留在 Git 忽略清單內。提交前請檢查 `git status`，勿提交裝置資料、憑證或個人匯出檔。
+- `.gitignore` 嚴格排除簽章金鑰（`*.keystore`, `*.jks`）、憑證、環境機密與編譯產物，落實 Zero-Leak 原則。

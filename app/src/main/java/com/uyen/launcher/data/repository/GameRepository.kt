@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
-/** Aggregates built-in experiences, launchable apps, and user-selected local game folders. */
+/**
+ * 聚合內建體驗、可啟動 App 與本機 ROM/Galgame 的商業級資料倉儲 (GameRepository)
+ */
 class GameRepository(private val context: Context) {
 
     private val scanner = LocalRomScanner(context.contentResolver)
@@ -27,8 +29,10 @@ class GameRepository(private val context: Context) {
 
     fun toggleFavorite(gameId: String) {
         if (!favoriteIds.add(gameId)) favoriteIds.remove(gameId)
-        favoriteIds.let { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putStringSet(KEY_FAVORITES, it.toSet()).apply() }
+        favoriteIds.let {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putStringSet(KEY_FAVORITES, it.toSet()).apply()
+        }
         publishGames()
     }
 
@@ -67,22 +71,79 @@ class GameRepository(private val context: Context) {
         publishGames()
     }
 
+    /**
+     * 商業級掌機遊戲喚起分發引擎
+     * 1. 原生 Android 應用直接透過 PackageManager 啟動
+     * 2. Galgame 本機檔案智能調用 Tyranor / Kirikiroid2 / JoiPlay，未安裝引擎則回傳 false 觸發引導彈窗
+     * 3. 復古 ROM 透過系統關聯相容模擬器開啟
+     */
     fun launchGame(item: GameItem): Boolean {
+        val pm = context.packageManager
+
+        // 1. Android 原生已安裝 App
         val packageName = item.packageName
         if (packageName != null) {
-            val intent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return false
+            val intent = pm.getLaunchIntentForPackage(packageName) ?: return false
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
             return true
         }
-        val uri = item.launchIntentUri?.let(Uri::parse) ?: return false
+
+        val uriString = item.launchIntentUri ?: return false
+        val uri = Uri.parse(uriString)
+
+        // 2. Galgame 專屬引擎智能分發
+        if (item.category == GameCategory.GALGAME) {
+            val candidateEngines = listOf(
+                "com.tyranor",                 // Tyranor 通用視覺小說引擎 (麵包工房)
+                "cn.yuri.kirikiri",            // Kirikiroid2 (吉里吉里2官方)
+                "com.artemi.kirikiroid2",
+                "com.artemi.kirikiroid2_free",
+                "cyou.joiplay.joiplay",        // JoiPlay 主程式
+                "cyou.joiplay.renpy"           // JoiPlay Ren'Py 外掛
+            )
+
+            val installedEngine = candidateEngines.firstOrNull { pkg ->
+                runCatching { pm.getPackageInfo(pkg, 0) }.isSuccess
+            }
+
+            if (installedEngine != null) {
+                // 嘗試以 ACTION_VIEW 傳遞 URI 權限直接進入遊戲
+                val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, item.mimeType ?: "application/octet-stream")
+                    setPackage(installedEngine)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                if (viewIntent.resolveActivity(pm) != null) {
+                    context.startActivity(viewIntent)
+                    return true
+                }
+
+                // 若該引擎不支援 URI 隱式調用，則啟動該引擎主介面
+                val launchIntent = pm.getLaunchIntentForPackage(installedEngine)
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(launchIntent)
+                    return true
+                }
+            }
+
+            // 手機未安裝任何 Galgame 核心引擎 -> 回傳 false 觸發掌機助手引導安裝
+            return false
+        }
+
+        // 3. 通用本機遊戲 (復古 ROM / 獨立檔案)
         return runCatching {
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, item.mimeType ?: "application/octet-stream")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(intent)
-            true
+            if (intent.resolveActivity(pm) != null) {
+                context.startActivity(intent)
+                true
+            } else {
+                false
+            }
         }.getOrDefault(false)
     }
 

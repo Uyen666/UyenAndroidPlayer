@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import coil.compose.AsyncImage
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -340,7 +341,17 @@ private fun GameCard(
                     .background(Color.Black.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center
             ) {
-                if (appIcon != null) {
+                val cardArtwork = game.coverUrl ?: game.bannerUrl
+                if (!cardArtwork.isNullOrBlank()) {
+                    AsyncImage(
+                        model = cardArtwork,
+                        contentDescription = game.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                } else if (appIcon != null) {
                     Image(
                         bitmap = appIcon,
                         contentDescription = game.title,

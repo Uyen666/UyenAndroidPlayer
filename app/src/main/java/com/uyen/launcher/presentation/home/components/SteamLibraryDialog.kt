@@ -40,14 +40,19 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -71,9 +76,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.uyen.launcher.core.util.AppIconUtil
 import com.uyen.launcher.core.util.rememberAppIcon
 import com.uyen.launcher.data.model.GameCategory
@@ -94,11 +101,12 @@ private data class SteamDeckCategory(
 )
 
 /**
- * Steam OS 掌機收藏庫全螢幕彈窗 (附圖 1：1:1 移植 Steam Deck 頂級體驗)
+ * Steam OS 掌機收藏庫全螢幕彈窗
  * 1. 螢幕最底部平滑往上滑動展開動畫 (Slide-Up Spring Damping 0.85)
  * 2. 頂部 L1 / R1 實體按鈕提示與動態計數徽章
- * 3. 2:3 直式長方形海報卡片網格 (Steam Deck Capsule Poster)
- * 4. 底部 SteamOS 主機操控提示列 (A啟動 / B返回 / X篩選 / Y排序)
+ * 3. 2:3 直式長方形海報卡片網格 (Steam Deck Capsule Poster)，支援本機 cover.jpg 高解析海報
+ * 4. Galgame 專屬 SAF 資料夾導入空狀態與一鍵換目錄/重整
+ * 5. 底部 SteamOS 主機操控提示列 (A啟動 / B返回 / X篩選 / Y排序)
  */
 @Composable
 fun SteamLibraryDialog(
@@ -107,6 +115,8 @@ fun SteamLibraryDialog(
     pinnedGameIds: List<String> = emptyList(),
     onTogglePin: ((String) -> Unit)? = null,
     onLaunchGame: (GameItem) -> Unit,
+    onPickGalgameFolder: (() -> Unit)? = null,
+    onRescanGalgames: (() -> Unit)? = null,
     onClose: () -> Unit
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -127,19 +137,25 @@ fun SteamLibraryDialog(
         )
     }
 
+    val currentTab = tabs.getOrNull(selectedTabIndex) ?: tabs.first()
+
     val filteredGames = remember(games, selectedTabIndex, searchQuery, sortMode) {
-        val currentTab = tabs.getOrNull(selectedTabIndex) ?: tabs.first()
-        val list = games.filter { item ->
-            val matchesCategory = when (currentTab.id) {
+        val tab = tabs.getOrNull(selectedTabIndex) ?: tabs.first()
+        var list = games.filter { item ->
+            when (tab.id) {
                 "all" -> true
                 "installed" -> !item.packageName.isNullOrBlank()
                 "favorites" -> item.isFavorite
-                else -> currentTab.category == null || item.category == currentTab.category
+                else -> tab.category == null || item.category == tab.category
             }
-            val matchesQuery = searchQuery.isBlank() ||
-                    item.title.contains(searchQuery, ignoreCase = true) ||
-                    item.subtitle.contains(searchQuery, ignoreCase = true)
-            matchesCategory && matchesQuery
+        }
+
+        if (searchQuery.isNotBlank()) {
+            list = list.filter {
+                it.title.contains(searchQuery, ignoreCase = true) ||
+                it.subtitle.contains(searchQuery, ignoreCase = true) ||
+                it.tags.any { tag -> tag.contains(searchQuery, ignoreCase = true) }
+            }
         }
 
         when (sortMode) {
@@ -149,7 +165,6 @@ fun SteamLibraryDialog(
         }
     }
 
-    // 全螢幕底部平滑彈出動畫 (Slide-Up Spring + Fade)
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(
@@ -158,40 +173,50 @@ fun SteamLibraryDialog(
                 dampingRatio = 0.85f,
                 stiffness = Spring.StiffnessMediumLow
             )
-        ) + fadeIn(animationSpec = tween(240)),
+        ) + fadeIn(animationSpec = tween(250)),
         exit = slideOutVertically(
             targetOffsetY = { it },
             animationSpec = spring(
                 dampingRatio = 0.85f,
                 stiffness = Spring.StiffnessMediumLow
             )
-        ) + fadeOut(animationSpec = tween(180))
+        ) + fadeOut(animationSpec = tween(200))
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF1E2838), // SteamOS 深藍灰色頂部
-                            Color(0xFF141A24), // SteamOS 中央網格主色
-                            Color(0xFF0D1117)  // SteamOS 底部暗黑操控條
+                .background(Color(0xFF0E141E))
+        ) {
+            // 背景深色磨砂紋理光暈 (SteamOS 標誌性冷藍灰基調)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF1E2838),
+                                Color(0xFF0B1017)
+                            ),
+                            radius = 1600f
                         )
                     )
-                )
-                .statusBarsPadding()
-                .navigationBarsPadding()
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // 1. 頂部 SteamOS 導航列 (L1 / 標籤組 / R1 / 搜尋 / 關閉)
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) {
+                // 1. 頂部 Steam Deck 分類標籤切換列 (含 L1/R1 實體肩鍵提示)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
-                        .padding(horizontal = 16.dp),
+                        .height(58.dp)
+                        .padding(horizontal = 20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // L1 肩鍵提示膠囊
+                    // 左側 L1 標記膠囊
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
@@ -258,7 +283,7 @@ fun SteamLibraryDialog(
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "$count",
-                                        fontSize = 11.sp,
+                                        fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) Color(0xFF00E5FF) else Color(0xFF6B7280)
                                     )
@@ -269,7 +294,7 @@ fun SteamLibraryDialog(
 
                     Spacer(modifier = Modifier.width(10.dp))
 
-                    // R1 肩鍵提示膠囊
+                    // 右側 R1 標記膠囊
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
@@ -290,13 +315,75 @@ fun SteamLibraryDialog(
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    // 搜尋展開或圖示
+                    // 若為 Galgame 標籤頁，提供常駐之「📁 變更/選取目錄」及「🔄 重新整理」快捷按鈕
+                    if (currentTab.id == "galgame" && onPickGalgameFolder != null) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF00E5FF).copy(alpha = 0.16f))
+                                .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                                .clickable { onPickGalgameFolder() }
+                                .padding(horizontal = 9.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = "選取/變更目錄",
+                                tint = Color(0xFF00E5FF),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (filteredGames.isEmpty()) "選取目錄" else "變更目錄",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF00E5FF)
+                            )
+                        }
+
+                        if (onRescanGalgames != null) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            IconButton(
+                                onClick = { onRescanGalgames() },
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .size(34.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "重新掃描",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
+                    // 搜尋功能展開/收合
                     if (isSearchExpanded) {
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("搜尋遊戲庫...", fontSize = 11.sp, color = TextMuted) },
+                            placeholder = { Text("搜尋遊戲或標籤...", fontSize = 11.5.sp, color = TextMuted) },
                             singleLine = true,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    searchQuery = ""
+                                    isSearchExpanded = false
+                                }) {
+                                    Icon(Icons.Default.Close, contentDescription = "關閉搜尋", tint = Color.White, modifier = Modifier.size(16.dp))
+                                }
+                            },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF00E5FF),
                                 unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
@@ -344,7 +431,7 @@ fun SteamLibraryDialog(
                     }
                 }
 
-                // 2. 遊戲海報網格列表 (2:3 直式長方形卡片，1:1 還原附圖 1)
+                // 2. 遊戲海報網格列表 (2:3 直式長方形卡片)
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -352,23 +439,126 @@ fun SteamLibraryDialog(
                         .padding(horizontal = 20.dp, vertical = 8.dp)
                 ) {
                     if (filteredGames.isEmpty()) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SportsEsports,
-                                contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.25f),
-                                modifier = Modifier.size(64.dp)
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = "此分類下暫無收錄遊戲或符合條件之應用",
-                                fontSize = 13.sp,
-                                color = TextMuted
-                            )
+                        if (currentTab.id == "galgame") {
+                            // Galgame 專屬空狀態引導卡片
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(76.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF00E5FF).copy(alpha = 0.12f))
+                                        .border(1.5.dp, Color(0xFF00E5FF).copy(alpha = 0.5f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                        contentDescription = null,
+                                        tint = Color(0xFF00E5FF),
+                                        modifier = Modifier.size(38.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Text(
+                                    text = "尚未匯入 Galgame 遊戲目錄",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "支援吉里吉里 2/Z (.xp3)、Ren'Py (.rpa)、Tyrano 等子資料夾。\n選取資料夾後將自動識別遊戲名稱與封面海報！",
+                                    fontSize = 12.sp,
+                                    color = TextMuted,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 18.sp
+                                )
+                                Spacer(modifier = Modifier.height(18.dp))
+                                if (onPickGalgameFolder != null) {
+                                    Button(
+                                        onClick = onPickGalgameFolder,
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.shadow(10.dp, RoundedCornerShape(12.dp))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FolderOpen,
+                                            contentDescription = null,
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "📁 選取 Galgame 目錄 (SAF 授權)",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color.Black
+                                        )
+                                    }
+                                }
+                            }
+                        } else if (currentTab.id == "retro") {
+                            // Retro 復古 ROM 專屬空狀態
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SportsEsports,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.25f),
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "尚未匯入復古 ROM 遊戲目錄",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "支援 FC/NES、GBA、SFC 等 ROM 格式單檔與資料夾",
+                                    fontSize = 12.sp,
+                                    color = TextMuted
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                if (onPickGalgameFolder != null) {
+                                    Button(
+                                        onClick = onPickGalgameFolder,
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF384358)),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("選取 ROM 目錄", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        } else {
+                            // 通用空狀態
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SportsEsports,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.25f),
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "此分類下暫無收錄遊戲或符合條件之應用",
+                                    fontSize = 13.sp,
+                                    color = TextMuted
+                                )
+                            }
                         }
                     } else {
                         LazyVerticalGrid(
@@ -393,7 +583,7 @@ fun SteamLibraryDialog(
                     }
                 }
 
-                // 3. 底部 SteamOS 掌機操控提示欄 (1:1 附圖 1 底欄：A選擇 / B返回 / X篩選 / Y排序)
+                // 3. 底部 SteamOS 掌機操控提示欄
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -501,7 +691,10 @@ private fun ControllerKeyHint(
 }
 
 /**
- * Steam Deck 2:3 直式長方形海報卡片 (附圖 1：高亮微光白框、滿版海報、右下角 Verified 標籤)
+ * Steam Deck 2:3 直式長方形海報卡片
+ * - 支援 Coil AsyncImage 渲染本機提取之 cover.jpg / 高解析宣傳海報
+ * - 右上角獨立「📌 釘選至首頁」切換膠囊
+ * - 點擊卡片本體立即啟動遊戲
  */
 @Composable
 private fun SteamDeckPosterCard(
@@ -554,7 +747,7 @@ private fun SteamDeckPosterCard(
                 onClick = onClick
             )
     ) {
-        // 1. 底層旋轉浮水印層
+        // 1. 底層旋轉浮水印層 (無外部海報時的點綴)
         Icon(
             imageVector = when (game.category) {
                 GameCategory.GALGAME -> Icons.AutoMirrored.Filled.MenuBook
@@ -564,21 +757,29 @@ private fun SteamDeckPosterCard(
                 else -> Icons.Default.Gamepad
             },
             contentDescription = null,
-            tint = Color.White.copy(alpha = 0.12f),
+            tint = Color.White.copy(alpha = 0.10f),
             modifier = Modifier
                 .size(110.dp)
                 .align(Alignment.Center)
                 .rotate(-15f)
         )
 
-        // 2. 中央視覺圖標區 (居中高解析度展示)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 36.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (appIcon != null) {
+        // 2. 中央/滿版海報展示區 (優先載入本機 cover.jpg 或線上高解析大海報)
+        val posterArtwork = game.coverUrl ?: game.bannerUrl
+        if (!posterArtwork.isNullOrBlank()) {
+            AsyncImage(
+                model = posterArtwork,
+                contentDescription = game.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (appIcon != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 36.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Image(
                     bitmap = appIcon,
                     contentDescription = game.title,
@@ -588,7 +789,14 @@ private fun SteamDeckPosterCard(
                         .clip(RoundedCornerShape(14.dp))
                         .shadow(8.dp, RoundedCornerShape(14.dp))
                 )
-            } else {
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 36.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Box(
                     modifier = Modifier
                         .size(64.dp)
@@ -618,8 +826,8 @@ private fun SteamDeckPosterCard(
                 .align(Alignment.TopStart)
                 .padding(8.dp)
                 .clip(RoundedCornerShape(4.dp))
-                .background(Color.Black.copy(alpha = 0.55f))
-                .padding(horizontal = 5.dp, vertical = 2.dp)
+                .background(Color.Black.copy(alpha = 0.65f))
+                .padding(horizontal = 6.dp, vertical = 2.5.dp)
         ) {
             Text(
                 text = game.category.displayName,
@@ -629,24 +837,50 @@ private fun SteamDeckPosterCard(
             )
         }
 
-        // 4. 底部暗黑漸層罩
+        // 4. 右上角「📌 釘選至首頁」切換按鈕
+        if (onTogglePin != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(7.dp)
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(if (isPinned) Color(0xFF00E5FF) else Color.Black.copy(alpha = 0.65f))
+                    .border(
+                        1.dp,
+                        if (isPinned) Color.White else Color.White.copy(alpha = 0.35f),
+                        CircleShape
+                    )
+                    .clickable { onTogglePin(game.id) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PushPin,
+                    contentDescription = if (isPinned) "已釘選至首頁" else "釘選至首頁",
+                    tint = if (isPinned) Color.Black else Color.White,
+                    modifier = Modifier.size(13.dp)
+                )
+            }
+        }
+
+        // 5. 底部暗黑漸層罩 (保證字體可讀性)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(58.dp)
+                .height(64.dp)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.70f),
-                            Color.Black.copy(alpha = 0.95f)
+                            Color.Black.copy(alpha = 0.75f),
+                            Color.Black.copy(alpha = 0.96f)
                         )
                     )
                 )
         )
 
-        // 5. 底部遊戲標題與右下角 Steam Deck Verified 綠色勾勾認證標記 (附圖 1)
+        // 6. 底部遊戲標題與右下角 Steam Deck Verified 綠色勾勾認證標記
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)

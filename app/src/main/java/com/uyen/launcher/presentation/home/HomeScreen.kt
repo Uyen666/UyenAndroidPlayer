@@ -394,6 +394,8 @@ fun HomeScreen(
             pinnedGameIds = pinnedGameIds,
             onTogglePin = { viewModel.togglePinGame(it) },
             onLaunchGame = { viewModel.launchGame(it) },
+            onPickGalgameFolder = { gamesFolderPicker.launch(null) },
+            onRescanGalgames = { viewModel.rescanGamesFolder() },
             onClose = { viewModel.setLibraryOpen(false) }
         )
 
@@ -423,6 +425,7 @@ fun HomeScreen(
             onOpenTaskSwitcher = { viewModel.setTaskSwitcherOpen(true) },
             onCleanRam = { viewModel.cleanMemory() },
             ramCleanMessage = boostMessage,
+            onPickGamesFolder = { gamesFolderPicker.launch(null) },
             onExitLauncher = { viewModel.exitLauncher(context as? Activity) },
             onClose = { viewModel.setSettingsOpen(false) }
         )
