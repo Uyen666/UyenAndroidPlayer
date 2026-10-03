@@ -1,6 +1,6 @@
 # UyenLauncher 專案現況
 
-- **套件版本**：`1.0.1`（`versionCode 2`）
+- **套件版本**：`1.0.0`（`versionCode 100`，第一次正式發行版）
 - **GitHub**：https://github.com/Uyen666/UyenAndroidPlayer
 - **更新日期**：2026-10-03
 - **主要技術**：Kotlin、Jetpack Compose、Android SDK 35

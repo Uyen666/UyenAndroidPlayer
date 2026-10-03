@@ -1,4 +1,4 @@
-# UyenLauncher
+# UyenLauncher (v1.0.0 正式版)
 
 UyenLauncher 是專為 Android 打造的掌機風格遊戲啟動器（以 Kotlin、Jetpack Compose 建置，最佳化適配橫向掌機模式）。它提供 PS5/SteamOS 風格的 Hero Banner 巨幅海報牆、商業級 Galgame 遊戲目錄識別、已安裝 App 聚合庫、真實記憶體清理引擎、系統控制抽屜與全局懸浮導航條。
 
