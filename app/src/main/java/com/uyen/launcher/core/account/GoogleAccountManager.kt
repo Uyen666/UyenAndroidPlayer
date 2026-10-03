@@ -4,29 +4,35 @@ import android.accounts.Account
 import android.accounts.AccountManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import android.util.Log
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.uyen.launcher.data.model.GoogleAccount
 
 /**
- * 掌機真實 Google 帳號讀取與系統管理中心
- *
- * 1. 真實讀取設備上的 Google 帳號清單 (AccountManager)
- * 2. 支援切換多個 Google 帳號
- * 3. 支援一鍵跳轉系統原生「帳號與同步」與 Google 帳號管理中心
- * 4. 支援新增 Google 帳號
+ * 掌機真實 Google 帳號讀取、照片頭像同步與系統管理中心
  */
 object GoogleAccountManager {
 
     private const val TAG = "GoogleAccountManager"
     private const val PREFS_NAME = "uyen_google_account_prefs"
     private const val KEY_SAVED_EMAIL = "saved_google_email"
+    private const val KEY_AVATAR_PREFIX = "avatar_url_"
 
     /**
      * 讀取設備上所有已登入的 Google 帳號
      */
     fun getGoogleAccounts(context: Context): List<GoogleAccount> {
         val accountList = mutableListOf<GoogleAccount>()
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val lastGooglePhoto = try {
+            GoogleSignIn.getLastSignedInAccount(context)?.photoUrl?.toString()
+        } catch (_: Exception) { null }
+
         try {
             val am = AccountManager.get(context)
             val accounts: Array<Account> = am.getAccountsByType("com.google")
@@ -35,11 +41,16 @@ object GoogleAccountManager {
                 val email = acc.name
                 val displayPrefix = email.substringBefore("@")
                 val capitalizedName = displayPrefix.replaceFirstChar { it.uppercase() }
+                
+                // 優先讀取使用者自訂/同步的頭像照片，次要讀取 GoogleSignIn 緩存照片
+                val savedAvatar = prefs.getString(KEY_AVATAR_PREFIX + email.lowercase(), null)
+                    ?: lastGooglePhoto
+
                 accountList.add(
                     GoogleAccount(
                         email = email,
                         displayName = capitalizedName,
-                        avatarUrl = null,
+                        avatarUrl = savedAvatar,
                         isConnected = true,
                         cloudSyncStatus = "本機已同步 ($email)"
                     )
@@ -49,6 +60,52 @@ object GoogleAccountManager {
             Log.e(TAG, "Failed to get google accounts: ${e.message}")
         }
         return accountList
+    }
+
+    /**
+     * 儲存指定帳號的頭像照片 (支援本機相簿 Uri 或 Google 雲端照片 Url)
+     */
+    fun saveAvatarUrl(context: Context, email: String, avatarUrl: String?) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            if (avatarUrl != null) {
+                putString(KEY_AVATAR_PREFIX + email.lowercase(), avatarUrl)
+            } else {
+                remove(KEY_AVATAR_PREFIX + email.lowercase())
+            }
+        }.apply()
+    }
+
+    /**
+     * 構建 Google Sign-In 用於獲取高畫質頭像照片的登入 Intent
+     */
+    fun getGoogleSignInIntent(context: Context): Intent {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestProfile()
+            .build()
+        val client = GoogleSignIn.getClient(context, gso)
+        return client.signInIntent
+    }
+
+    /**
+     * 解析 Google Sign-In 回傳的成果並儲存頭像照片
+     */
+    fun handleGoogleSignInResult(context: Context, data: Intent?): String? {
+        if (data == null) return null
+        return try {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            val account: GoogleSignInAccount = task.getResult(ApiException::class.java)
+            val photoUrl = account.photoUrl?.toString()
+            val email = account.email ?: getActiveGoogleAccount(context).email
+            if (photoUrl != null) {
+                saveAvatarUrl(context, email, photoUrl)
+            }
+            photoUrl
+        } catch (e: Exception) {
+            Log.e(TAG, "Google Sign-In failed: ${e.message}")
+            null
+        }
     }
 
     /**

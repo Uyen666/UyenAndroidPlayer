@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -331,12 +332,23 @@ fun TopNavigationBar(
                         ) { onAccountClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = googleAccount.displayName.take(1).uppercase(),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    if (!googleAccount.avatarUrl.isNullOrEmpty()) {
+                        coil.compose.AsyncImage(
+                            model = googleAccount.avatarUrl,
+                            contentDescription = googleAccount.displayName,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        Text(
+                            text = googleAccount.displayName.take(1).uppercase(),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }

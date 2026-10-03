@@ -1,6 +1,9 @@
 package com.uyen.launcher.presentation.home
 
 import android.app.Activity
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
@@ -9,6 +12,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,8 +28,15 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -87,8 +98,42 @@ fun HomeScreen(
 
     val runningTasks by viewModel.runningTasks.collectAsState()
     val boostMessage by viewModel.boostMessage.collectAsState()
-
     val currentGame = displayGames.getOrNull(selectedIndex) ?: displayGames.firstOrNull()
+
+    // Google Sign-In 官方登入與獲取頭像照片 Launcher
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.handleGoogleSignInResult(result.data)
+    }
+
+    // 本機相簿自選個人相片 Launcher
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.updateCustomAvatar(uri.toString())
+        }
+    }
+
+    // 監聽懸浮窗權限與生命週期
+    var hasOverlayPermission by remember { mutableStateOf(viewModel.isOverlayPermissionGranted()) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasOverlayPermission = viewModel.isOverlayPermissionGranted()
+                if (hasOverlayPermission) {
+                    com.uyen.launcher.core.service.GlobalConsoleEdgeService.start(context)
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Box(
         modifier = modifier
@@ -316,6 +361,19 @@ fun HomeScreen(
             onSelectAccount = { viewModel.switchGoogleAccount(it) },
             onManageSystemAccounts = { viewModel.openManageSystemAccounts() },
             onAddAccount = { viewModel.openAddGoogleAccount() },
+            onSyncGooglePhoto = {
+                try {
+                    googleSignInLauncher.launch(viewModel.getGoogleSignInIntent())
+                } catch (_: Exception) {
+                    viewModel.openManageSystemAccounts()
+                }
+            },
+            onPickCustomPhoto = {
+                photoPickerLauncher.launch("image/*")
+            },
+            onClearCustomPhoto = {
+                viewModel.updateCustomAvatar(null)
+            },
             onSyncNow = {
                 viewModel.boostPerformance("Google Play 雲端存檔同步完成！")
                 viewModel.refreshGoogleAccounts()
@@ -329,6 +387,40 @@ fun HomeScreen(
                 soundManager = viewModel.soundManagerInstance,
                 onExit = { viewModel.setRetroArcadeOpen(false) }
             )
+        }
+
+        // 若尚未授權全局懸浮窗權限，右下方顯示醒目的掌機風格授權引導膠囊
+        AnimatedVisibility(
+            visible = !hasOverlayPermission,
+            enter = fadeIn() + slideInVertically { it },
+            exit = fadeOut() + slideOutVertically { it },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 22.dp, bottom = 62.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xF00F172A))
+                    .border(1.5.dp, Color(0xFF00E5FF), RoundedCornerShape(16.dp))
+                    .clickable { viewModel.requestOverlayPermission() }
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "🎮 啟用邊緣返回鍵",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF00E5FF)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "點此開啟懸浮權限",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            }
         }
     }
 }

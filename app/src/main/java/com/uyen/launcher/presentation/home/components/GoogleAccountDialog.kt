@@ -66,6 +66,9 @@ fun GoogleAccountDialog(
     onSelectAccount: (GoogleAccount) -> Unit,
     onManageSystemAccounts: () -> Unit,
     onAddAccount: () -> Unit,
+    onSyncGooglePhoto: () -> Unit,
+    onPickCustomPhoto: () -> Unit,
+    onClearCustomPhoto: () -> Unit,
     onSyncNow: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -168,12 +171,23 @@ fun GoogleAccountDialog(
                                 .background(Color(0xFF232538)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = currentAccount.displayName.take(1).uppercase(),
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White
-                            )
+                            if (!currentAccount.avatarUrl.isNullOrEmpty()) {
+                                coil.compose.AsyncImage(
+                                    model = currentAccount.avatarUrl,
+                                    contentDescription = currentAccount.displayName,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                )
+                            } else {
+                                Text(
+                                    text = currentAccount.displayName.take(1).uppercase(),
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(14.dp))
@@ -211,6 +225,54 @@ fun GoogleAccountDialog(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 頭像相片專屬管理排 (滿足使用者展示 Google 真實相片之需求)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onSyncGooglePhoto,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = "同步 Google 照片",
+                                modifier = Modifier.size(13.dp),
+                                tint = Ps5Blue
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "同步Google相片", fontSize = 11.sp, color = TextPrimary)
+                        }
+
+                        OutlinedButton(
+                            onClick = onPickCustomPhoto,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PersonAdd,
+                                contentDescription = "相簿選取照片",
+                                modifier = Modifier.size(13.dp),
+                                tint = AccentGold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "相簿選取相片", fontSize = 11.sp, color = AccentGold)
+                        }
+
+                        if (!currentAccount.avatarUrl.isNullOrEmpty()) {
+                            OutlinedButton(
+                                onClick = onClearCustomPhoto,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.width(70.dp)
+                            ) {
+                                Text(text = "重設", fontSize = 11.sp, color = TextSecondary)
+                            }
                         }
                     }
 

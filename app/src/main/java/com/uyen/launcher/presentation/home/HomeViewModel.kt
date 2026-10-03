@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.uyen.launcher.core.account.GoogleAccountManager
@@ -185,6 +186,38 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openAddGoogleAccount() {
         GoogleAccountManager.openAddGoogleAccount(getApplication())
+    }
+
+    fun getGoogleSignInIntent(): Intent {
+        return GoogleAccountManager.getGoogleSignInIntent(getApplication())
+    }
+
+    fun handleGoogleSignInResult(data: Intent?) {
+        val app = getApplication<Application>()
+        val photoUrl = GoogleAccountManager.handleGoogleSignInResult(app, data)
+        if (photoUrl != null) {
+            refreshGoogleAccounts()
+            boostPerformance("已同步 Google 帳號相片！")
+        } else {
+            boostPerformance("Google 登入或相片獲取完成")
+            refreshGoogleAccounts()
+        }
+    }
+
+    fun updateCustomAvatar(uri: String?) {
+        val app = getApplication<Application>()
+        val currentEmail = _googleAccount.value.email
+        GoogleAccountManager.saveAvatarUrl(app, currentEmail, uri)
+        refreshGoogleAccounts()
+        boostPerformance(if (uri != null) "已更新個人相片！" else "已重設個人相片")
+    }
+
+    fun isOverlayPermissionGranted(): Boolean {
+        return GlobalConsoleEdgeService.isOverlayPermissionGranted(getApplication())
+    }
+
+    fun requestOverlayPermission() {
+        GlobalConsoleEdgeService.requestOverlayPermission(getApplication())
     }
 
     fun setAccountDialogOpen(open: Boolean) {
