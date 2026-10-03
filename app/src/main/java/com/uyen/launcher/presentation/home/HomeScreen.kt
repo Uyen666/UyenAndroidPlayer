@@ -65,6 +65,8 @@ import com.uyen.launcher.data.model.GameItem
 import com.uyen.launcher.presentation.controller.TouchGamepadOverlay
 import com.uyen.launcher.presentation.home.components.BottomControlBar
 import com.uyen.launcher.presentation.home.components.EmulatorAssistantDialog
+import com.uyen.launcher.presentation.home.components.GameActionMenuDialog
+import com.uyen.launcher.presentation.home.components.GameBannerBackdrop
 import com.uyen.launcher.presentation.home.components.GameCarousel
 import com.uyen.launcher.presentation.home.components.GoogleAccountDialog
 import com.uyen.launcher.presentation.home.components.HandheldTaskSwitcherDialog
@@ -116,6 +118,21 @@ fun HomeScreen(
     val boostMessage by viewModel.boostMessage.collectAsState()
     val currentGame = displayGames.getOrNull(selectedIndex) ?: displayGames.firstOrNull()
 
+    val resolvedBanners by viewModel.resolvedBanners.collectAsState()
+    val activeActionMenuGame by viewModel.activeActionMenuGame.collectAsState()
+
+    // 遊戲自訂大海報挑選器 Launcher
+    var pendingBannerGameId by remember { mutableStateOf<String?>(null) }
+    val bannerPhotoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        val gameId = pendingBannerGameId
+        if (uri != null && gameId != null) {
+            viewModel.setCustomBannerForGame(gameId, uri)
+        }
+        pendingBannerGameId = null
+    }
+
     // 本機相簿自選個人相片 Launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -160,31 +177,12 @@ fun HomeScreen(
             .fillMaxSize()
             .background(BackgroundDark)
     ) {
-        // 遊戲海報拼貼矩陣底層 (附圖 2 風格：暗色微傾斜遊戲海報拼貼，賦予主機頂級景深)
-        GamePosterWallBackdrop(games = games)
-
-        // 動態景深背景 (根據選中遊戲呈現平滑色彩渲染，保持 PS5 沉浸質感)
-        Crossfade(targetState = currentGame?.category, label = "bg_crossfade") { cat ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                when (cat) {
-                                    com.uyen.launcher.data.model.GameCategory.GALGAME -> Color(0x33A855F7)
-                                    com.uyen.launcher.data.model.GameCategory.RETRO -> Color(0x33F97316)
-                                    com.uyen.launcher.data.model.GameCategory.STREAMING -> Color(0x330284C7)
-                                    com.uyen.launcher.data.model.GameCategory.CUSTOM -> Color(0x3322C55E)
-                                    else -> Ps5Blue.copy(alpha = 0.25f)
-                                },
-                                Color.Transparent
-                            ),
-                            radius = 1200f
-                        )
-                    )
-            )
-        }
+        // PS5 旗艦等級遊戲大海報背景 (依序走訪 自訂相片 -> 官方精選 -> Android TV 橫幅 -> Google Play 宣傳圖)
+        GameBannerBackdrop(
+            currentGame = currentGame,
+            resolvedBanner = resolvedBanners[currentGame?.id],
+            fallbackGames = games
+        )
 
         // 主畫面主要內容佈局
         Column(
@@ -268,6 +266,7 @@ fun HomeScreen(
                             onLaunchGame = { viewModel.launchGame(it) },
                             showAddCard = tab == com.uyen.launcher.data.model.MainNavTab.HOME,
                             onAddCardClick = { viewModel.setCardManagerOpen(true) },
+                            onCardLongClick = { game -> viewModel.openGameActionMenu(game) },
                             onRemoveGame = if (tab == com.uyen.launcher.data.model.MainNavTab.HOME) {
                                 { game -> viewModel.unpinGameFromHome(game.id) }
                             } else null
@@ -442,14 +441,46 @@ fun HomeScreen(
             onClose = { viewModel.setAccountDialogOpen(false) }
         )
 
-        // 首頁輪播卡片自定義管理彈窗 (從收藏庫添加/移除卡片)
+        // 首頁輪播卡片自定義管理彈窗 (從收藏庫添加/移除卡片，自訂海報)
         HomeCardManagerDialog(
             visible = isCardManagerOpen,
             allGames = games,
             pinnedGameIds = pinnedGameIds,
             onTogglePin = { viewModel.togglePinGame(it) },
+            onOpenActionMenu = { game -> viewModel.openGameActionMenu(game) },
             onClose = { viewModel.setCardManagerOpen(false) }
         )
+
+        // 遊戲海報客製化與動作選單彈窗 (長按卡片或點擊換海報時開啟)
+        activeActionMenuGame?.let { actionGame ->
+            GameActionMenuDialog(
+                game = actionGame,
+                resolvedBanner = resolvedBanners[actionGame.id],
+                isPinnedToHome = viewModel.isGamePinned(actionGame.id),
+                isCustomBanner = viewModel.isCustomBanner(actionGame.id),
+                onPickCustomBanner = {
+                    pendingBannerGameId = actionGame.id
+                    try {
+                        bannerPhotoPickerLauncher.launch("image/*")
+                    } catch (_: Exception) {}
+                },
+                onResetCustomBanner = {
+                    viewModel.resetCustomBannerForGame(actionGame)
+                },
+                onReScrapePlayStore = {
+                    viewModel.reScrapePlayStoreGraphic(actionGame)
+                },
+                onTogglePinToHome = {
+                    viewModel.togglePinGame(actionGame.id)
+                },
+                onLaunchGame = {
+                    viewModel.launchGame(actionGame)
+                },
+                onDismiss = {
+                    viewModel.closeGameActionMenu()
+                }
+            )
+        }
 
         // 內建 8-bit 太空突擊懷舊街機 (90Hz Smooth Canvas Mini-Game)
         if (isRetroArcadeOpen) {
@@ -492,63 +523,5 @@ fun HomeScreen(
                 )
             }
         }
-    }
-}
-
-/**
- * 遊戲海報矩陣背景牆 (附圖 2 風格：暗化微傾斜遊戲拼貼背景，呈現主機沉浸景深)
- */
-@Composable
-private fun GamePosterWallBackdrop(
-    games: List<GameItem>,
-    modifier: Modifier = Modifier
-) {
-    val sampleGames = remember(games) { games.take(16) }
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .clipToBounds()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .rotate(-5f)
-                .scale(1.15f)
-                .alpha(0.08f),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            repeat(3) { row ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    sampleGames.shuffled(java.util.Random(row * 42L)).forEach { game ->
-                        Box(
-                            modifier = Modifier
-                                .width(120.dp)
-                                .height(80.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(AppIconUtil.getArtworkGradient(game))
-                        )
-                    }
-                }
-            }
-        }
-
-        // 滿版深色徑向暗角
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color(0xCC090C15),
-                            Color(0xF8090C15)
-                        ),
-                        radius = 1100f
-                    )
-                )
-        )
     }
 }

@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Gamepad
@@ -89,6 +90,7 @@ fun HomeCardManagerDialog(
     allGames: List<GameItem>,
     pinnedGameIds: List<String>,
     onTogglePin: (String) -> Unit,
+    onOpenActionMenu: ((GameItem) -> Unit)? = null,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -341,6 +343,26 @@ fun HomeCardManagerDialog(
                                 }
 
                                 Spacer(modifier = Modifier.width(8.dp))
+
+                                // 海報客製化設定按鈕
+                                if (onOpenActionMenu != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color.White.copy(alpha = 0.08f))
+                                            .clickable { onOpenActionMenu(game) },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AddPhotoAlternate,
+                                            contentDescription = "自訂海報",
+                                            tint = SteamDeckAccent,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
 
                                 // 右側釘選/移除切換按鈕
                                 if (isPinned) {

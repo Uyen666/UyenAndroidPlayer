@@ -82,6 +82,7 @@ fun GameCarousel(
     showAddCard: Boolean = true,
     onAddCardClick: () -> Unit = {},
     onRemoveGame: ((GameItem) -> Unit)? = null,
+    onCardLongClick: ((GameItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -153,7 +154,13 @@ fun GameCarousel(
                         onSelectGame(index)
                     }
                 },
-                onLongClick = onRemoveGame?.let { removeFn -> { removeFn(game) } }
+                onLongClick = {
+                    if (onCardLongClick != null) {
+                        onCardLongClick(game)
+                    } else if (onRemoveGame != null) {
+                        onRemoveGame(game)
+                    }
+                }
             )
         }
 

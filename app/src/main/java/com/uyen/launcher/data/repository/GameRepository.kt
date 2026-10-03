@@ -32,6 +32,7 @@ class GameRepository(private val context: Context) {
                 category = GameCategory.CUSTOM,
                 tags = listOf("手柄模式", "UDP/藍牙", "低延遲"),
                 playTimeHours = 12.5f,
+                bannerUrl = "https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?q=80&w=1920&auto=format&fit=crop",
                 isFavorite = true
             ),
             GameItem(
@@ -42,6 +43,7 @@ class GameRepository(private val context: Context) {
                 packageName = "com.tyranor",
                 tags = listOf("Galgame", "AVG", "ONS", "KRKR"),
                 playTimeHours = 28.4f,
+                bannerUrl = "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop",
                 isFavorite = true
             ),
             GameItem(
@@ -51,6 +53,7 @@ class GameRepository(private val context: Context) {
                 category = GameCategory.RETRO,
                 tags = listOf("8-bit", "FC", "像素", "街機"),
                 playTimeHours = 15.2f,
+                bannerUrl = "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1920&auto=format&fit=crop",
                 isFavorite = true
             ),
             GameItem(
@@ -61,6 +64,7 @@ class GameRepository(private val context: Context) {
                 packageName = "com.limelight",
                 tags = listOf("3A大作", "PC串流", "90FPS"),
                 playTimeHours = 45.0f,
+                bannerUrl = "https://play-lh.googleusercontent.com/nZ1sv_1PalwMkR_c1XIBhAa9yr15PSYCLxVx6dogYaoGoj3nPM6ZmG70zv8VF_s2YQs9VwtX3bdxqVvuce6f=w1920-h1080",
                 isFavorite = true
             ),
             GameItem(
@@ -69,7 +73,8 @@ class GameRepository(private val context: Context) {
                 subtitle = "支援 HTML5 / PixiJS / Godot Web 自製微遊戲",
                 category = GameCategory.CUSTOM,
                 tags = listOf("自製作品", "Web", "獨立遊戲"),
-                playTimeHours = 8.1f
+                playTimeHours = 8.1f,
+                bannerUrl = "https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920&auto=format&fit=crop"
             ),
             GameItem(
                 id = "galgame_krkr",
@@ -78,7 +83,8 @@ class GameRepository(private val context: Context) {
                 category = GameCategory.GALGAME,
                 packageName = "org.tvp.kirikiri2",
                 tags = listOf("Galgame", "AVG", "日系"),
-                playTimeHours = 19.3f
+                playTimeHours = 19.3f,
+                bannerUrl = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1920&auto=format&fit=crop"
             ),
             GameItem(
                 id = "retro_gba",
@@ -86,7 +92,8 @@ class GameRepository(private val context: Context) {
                 subtitle = "經典 Game Boy Advance 核心",
                 category = GameCategory.RETRO,
                 tags = listOf("GBA", "16-bit", "掌機"),
-                playTimeHours = 34.6f
+                playTimeHours = 34.6f,
+                bannerUrl = "https://images.unsplash.com/photo-1531525645387-7f14be1bdbbd?q=80&w=1920&auto=format&fit=crop"
             ),
             GameItem(
                 id = "streaming_steamlink",
@@ -95,7 +102,8 @@ class GameRepository(private val context: Context) {
                 category = GameCategory.STREAMING,
                 packageName = "com.valvesoftware.steamlink",
                 tags = listOf("Steam", "串流", "遠端"),
-                playTimeHours = 22.0f
+                playTimeHours = 22.0f,
+                bannerUrl = "https://play-lh.googleusercontent.com/6TU14znIBQ6oierlwk8twhgqDLMhA3y-a-daQq8jF5d_OZpk9HpEo9rlMQ_KhxSUQ-mpohuQLVmH-jy6zoVCaTU=w1920-h1080"
             )
         )
         _games.value = initialList

@@ -9,6 +9,9 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.uyen.launcher.core.account.GoogleAccountManager
+import com.uyen.launcher.core.banner.BannerSourceType
+import com.uyen.launcher.core.banner.GameBannerManager
+import com.uyen.launcher.core.banner.ResolvedBanner
 import com.uyen.launcher.core.hardware.MemoryCleaner
 import com.uyen.launcher.core.hardware.PerformanceMonitor
 import com.uyen.launcher.core.hardware.SystemControlManager
@@ -43,9 +46,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val soundManager = SoundManager(application)
     private val memoryCleaner = MemoryCleaner(application)
     private val systemControlManager = SystemControlManager(application)
+    private val gameBannerManager = GameBannerManager(application)
     private val prefs = application.getSharedPreferences("uyen_launcher_ui_prefs", Context.MODE_PRIVATE)
 
     val games: StateFlow<List<GameItem>> = gameRepository.games
+
+    // 已解析的各遊戲大海報快取 (gameId -> ResolvedBanner)
+    private val _resolvedBanners = MutableStateFlow<Map<String, ResolvedBanner>>(emptyMap())
+    val resolvedBanners: StateFlow<Map<String, ResolvedBanner>> = _resolvedBanners.asStateFlow()
+
+    // 遊戲動作與海報客製化彈窗狀態
+    private val _activeActionMenuGame = MutableStateFlow<GameItem?>(null)
+    val activeActionMenuGame: StateFlow<GameItem?> = _activeActionMenuGame.asStateFlow()
 
     // 頂部導航分頁切換 (首頁 / 串流 / 遊戲)
     private val _selectedTab = MutableStateFlow(MainNavTab.HOME)
@@ -215,6 +227,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             gameRepository.scanInstalledApps()
             gameRepository.scanLocalRomFiles()
         }
+        // 背景預先解析遊戲大海報 (優先解析首頁釘選與可見卡片)
+        viewModelScope.launch {
+            games.collect { allGames ->
+                allGames.forEach { game ->
+                    if (!_resolvedBanners.value.containsKey(game.id)) {
+                        val banner = gameBannerManager.resolveBanner(game)
+                        if (banner != null) {
+                            _resolvedBanners.value = _resolvedBanners.value + (game.id to banner)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fun selectTab(tab: MainNavTab) {
@@ -322,7 +347,87 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             viewModelScope.launch {
                 soundManager.playCardFocusSound()
             }
+            val currentList = currentTabGames.value
+            currentList.getOrNull(index)?.let { game ->
+                if (!_resolvedBanners.value.containsKey(game.id)) {
+                    resolveBannerForGame(game)
+                }
+            }
         }
+    }
+
+    fun openGameActionMenu(game: GameItem) {
+        _activeActionMenuGame.value = game
+        // 確保彈窗打開時有解析其海報
+        if (!_resolvedBanners.value.containsKey(game.id)) {
+            resolveBannerForGame(game)
+        }
+    }
+
+    fun closeGameActionMenu() {
+        _activeActionMenuGame.value = null
+    }
+
+    fun resolveBannerForGame(game: GameItem) {
+        viewModelScope.launch {
+            val banner = gameBannerManager.resolveBanner(game)
+            if (banner != null) {
+                _resolvedBanners.value = _resolvedBanners.value + (game.id to banner)
+            }
+        }
+    }
+
+    fun setCustomBannerForGame(gameId: String, uri: Uri) {
+        viewModelScope.launch {
+            val path = gameBannerManager.setCustomBanner(gameId, uri)
+            if (path != null) {
+                val banner = ResolvedBanner(
+                    imageModel = path,
+                    sourceType = BannerSourceType.CUSTOM_USER
+                )
+                _resolvedBanners.value = _resolvedBanners.value + (gameId to banner)
+                boostPerformance("已成功套用自訂遊戲大海報！")
+            } else {
+                boostPerformance("讀取自訂相片失敗")
+            }
+        }
+    }
+
+    fun resetCustomBannerForGame(game: GameItem) {
+        viewModelScope.launch {
+            gameBannerManager.resetCustomBanner(game.id)
+            val banner = gameBannerManager.resolveBanner(game)
+            val currentMap = _resolvedBanners.value.toMutableMap()
+            if (banner != null) {
+                currentMap[game.id] = banner
+            } else {
+                currentMap.remove(game.id)
+            }
+            _resolvedBanners.value = currentMap
+            boostPerformance("已還原為自動海報")
+        }
+    }
+
+    fun reScrapePlayStoreGraphic(game: GameItem) {
+        val pkg = game.packageName ?: return
+        viewModelScope.launch {
+            boostPerformance("正在重新抓取 Google Play 宣傳海報...")
+            val url = gameBannerManager.getOrScrapePlayStoreGraphic(pkg, forceRefresh = true)
+            if (url != null) {
+                val banner = ResolvedBanner(
+                    imageModel = url,
+                    sourceType = BannerSourceType.PLAY_STORE
+                )
+                _resolvedBanners.value = _resolvedBanners.value + (game.id to banner)
+                boostPerformance("Google Play 高清海報更新成功！")
+            } else {
+                boostPerformance("Google Play 未找到宣傳海報")
+            }
+        }
+    }
+
+    fun isCustomBanner(gameId: String): Boolean {
+        return gameBannerManager.isCustomBanner(gameId)
     }
 
     fun setRetroArcadeOpen(open: Boolean) {
