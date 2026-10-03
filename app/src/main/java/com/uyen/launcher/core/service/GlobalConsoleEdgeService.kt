@@ -12,6 +12,7 @@ import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
+import android.provider.Settings
 import android.os.IBinder
 import android.os.Looper
 import android.os.VibrationEffect
@@ -335,31 +336,34 @@ class GlobalConsoleEdgeService : Service() {
     }
 
     private fun returnToLauncherHome() {
-        val handled = UyenConsoleAccessibilityService.performHome()
-        if (!handled) {
-            val intent = Intent(this, MainActivity::class.java).apply {
-                action = Intent.ACTION_MAIN
-                addCategory(Intent.CATEGORY_HOME)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-            }
-            try {
-                startActivity(intent)
-            } catch (_: Exception) {}
+        val intent = Intent(this, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+        }
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {
+            UyenConsoleAccessibilityService.performHome()
         }
     }
 
     private fun injectBackAction() {
-        // 優先透過無障礙服務全局注入 BACK
         val handled = UyenConsoleAccessibilityService.performBack()
         if (!handled) {
-            // 次要備援：透過 runtime input keyevent 4
             try {
-                Runtime.getRuntime().exec("input keyevent 4")
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+                android.widget.Toast.makeText(
+                    this,
+                    "請在「已下載的應用程式」中啟用 UyenConsole 服務以啟用全局返回鍵",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
             } catch (_: Exception) {
-                // 若均不支援，直接跳回主頁保證絕不卡死
                 returnToLauncherHome()
             }
         }
