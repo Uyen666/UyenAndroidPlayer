@@ -114,4 +114,31 @@ class GameBannerUnitTest {
         val result = manager.optimizeGoogleImageUrl(external)
         assertEquals(external, result)
     }
+
+    @Test
+    fun testGetAmbientColorRules() {
+        val moonlightGame = com.uyen.launcher.data.model.GameItem(
+            id = "streaming_moonlight",
+            title = "Moonlight",
+            packageName = "com.limelight",
+            category = com.uyen.launcher.data.model.GameCategory.STREAMING
+        )
+        val youtubeGame = com.uyen.launcher.data.model.GameItem(
+            id = "app:com.google.android.youtube",
+            title = "YouTube",
+            packageName = "com.google.android.youtube",
+            category = com.uyen.launcher.data.model.GameCategory.TOOL
+        )
+        val galgame = com.uyen.launcher.data.model.GameItem(
+            id = "local_galgame",
+            title = "Visual Novel",
+            category = com.uyen.launcher.data.model.GameCategory.GALGAME
+        )
+        val nullGame: com.uyen.launcher.data.model.GameItem? = null
+
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF0284C7), com.uyen.launcher.core.util.AppIconUtil.getAmbientColor(moonlightGame))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFBE123C), com.uyen.launcher.core.util.AppIconUtil.getAmbientColor(youtubeGame))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF9333EA), com.uyen.launcher.core.util.AppIconUtil.getAmbientColor(galgame))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFF1E3A8A), com.uyen.launcher.core.util.AppIconUtil.getAmbientColor(nullGame))
+    }
 }

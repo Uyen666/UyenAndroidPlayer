@@ -91,6 +91,29 @@ object AppIconUtil {
             )
         }
     }
+
+    /**
+     * 針對遊戲提供專屬環境光暈主題色 (Ambient Color)
+     */
+    fun getAmbientColor(game: GameItem?): Color {
+        if (game == null) return Color(0xFF1E3A8A)
+        val pkg = game.packageName ?: ""
+        val id = game.id
+        return when {
+            id == "streaming_moonlight" || pkg == "com.limelight" -> Color(0xFF0284C7)
+            id == "streaming_steamlink" || pkg == "com.valvesoftware.steamlink" -> Color(0xFF1D4ED8)
+            pkg.contains("youtube", ignoreCase = true) -> Color(0xFFBE123C)
+            pkg.contains("chrome", ignoreCase = true) -> Color(0xFF0284C7)
+            id == "controller_mode" -> Color(0xFF059669)
+            id == "retro_8bit" -> Color(0xFFD97706)
+            game.category == GameCategory.GALGAME -> Color(0xFF9333EA)
+            game.category == GameCategory.RETRO -> Color(0xFFEA580C)
+            game.category == GameCategory.STREAMING -> Color(0xFF0284C7)
+            game.category == GameCategory.CUSTOM -> Color(0xFF10B981)
+            game.category == GameCategory.TOOL -> Color(0xFF475569)
+            else -> Color(0xFF2563EB)
+        }
+    }
 }
 
 @Composable
