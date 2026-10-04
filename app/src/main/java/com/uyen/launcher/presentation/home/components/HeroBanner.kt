@@ -10,6 +10,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
@@ -75,67 +79,81 @@ fun HeroBanner(
                 .fillMaxWidth()
                 .padding(horizontal = 36.dp, vertical = 6.dp)
         ) {
-            // 類別標籤與標籤徽章
+            // 精緻膠囊標籤列 (微毛玻璃半透明底色 + 細緻邊框)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Ps5Blue.copy(alpha = 0.35f))
-                        .padding(horizontal = 9.dp, vertical = 3.5.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.15f))
+                        .border(0.5.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = targetGame.category.displayName,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SteamDeckAccent
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White.copy(alpha = 0.95f),
+                        letterSpacing = 0.2.sp
                     )
                 }
 
                 targetGame.tags.forEach { tag ->
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .background(Color.White.copy(alpha = 0.08f))
-                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                            .border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = tag,
                             fontSize = 10.5.sp,
-                            color = TextMuted
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.70f)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // 遊戲大標題 (主機級極致黑體字型)
+            // 遊戲大標題 (主機級 ExtraBold + 沉浸式陰影)
             Text(
                 text = targetGame.title,
                 fontSize = 32.sp,
-                fontWeight = FontWeight.Black,
+                fontWeight = FontWeight.ExtraBold,
                 color = TextPrimary,
-                letterSpacing = 0.4.sp
+                letterSpacing = 0.3.sp,
+                style = TextStyle(
+                    shadow = Shadow(
+                        color = Color.Black.copy(alpha = 0.85f),
+                        offset = Offset(0f, 2.5f),
+                        blurRadius = 6f
+                    )
+                )
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // 副標題與遊玩時間
+            // 副標題 (發行商 / 客戶端類型) 與遊玩時間
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = targetGame.subtitle,
-                    fontSize = 13.sp,
-                    color = TextSecondary
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color.White.copy(alpha = 0.72f),
+                    letterSpacing = 0.2.sp
                 )
                 if (targetGame.playTimeHours > 0) {
                     Text(
                         text = " • 已遊玩 ${String.format("%.1f", targetGame.playTimeHours)} 小時",
                         fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
                         color = AccentGold
                     )
                 }

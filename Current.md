@@ -9,16 +9,21 @@
 
 ## 目前已實作
 
-- **雙層環境光暈 + 右側 Hero Stage 旗艦海報展台（`GameBannerBackdrop` & `AppIconUtil`）**：
-  - **右側獨立 Hero 展台架構**：解決一般掌機海報或串流 Banner（如 1024x500）被全螢幕暴力放大拉伸（1600x720）導致輪廓模糊、文字重疊與馬賽克的痛點。將海報視覺約束在右側黃金顯示區（寬度 64%、高度 72%），海報以接近 1:1 的原生像素密度高畫質渲染。
-  - **四向羽化柔和漸層（4-Way Soft Feathering）**：左側羽化漸淡融入深色底座，徹底避免海報文字與左側標題/標籤碰撞；底部平滑漸隱至卡片上方；頂部保留導航與狀態列防護；右側保留柔和暗角。
-  - **智慧長寬比動態適配（Landscape / Square Emblem / Portrait Capsule）**：
-    - 橫向海報（寬高比 > 1.22）：右置 4 向羽化寬幅海報展台（如 Moonlight, Steam Link）。
-    - 正方形圖示（寬高比 0.82 ~ 1.22，如 YouTube 等日常 App）：自動轉化為精緻的 150dp 3D 浮動徽章，配備立體圓角邊框與品牌專屬光暈，徹底終結全螢幕紅色色塊。
-    - 直式海報（寬高比 < 0.82，如 Galgame）：呈現 Steam Deck 風格的 2:3 獨立直式浮動膠囊海報。
-  - **動態品牌雙層環境光（Dual-Layer Ambient Lighting）**：
-    - 底層全螢幕超大半徑柔和放射狀環境光源，依據當前聚焦之遊戲品牌色彩（Moonlight 湖水青綠、YouTube 深沉朱紅、Steam Link 科技蔚藍、Galgame 夢幻粉紫、內建 8-Bit 復古暖琥珀、Uyen 綠洲青）動態投射；
-    - 展台核心聚焦光暈，提供立體層次與劇院級掌機沉浸感。
+- **PS5 旗艦全螢幕海報與雙向漸層遮罩系統（`GameBannerBackdrop` & `AppIconUtil`）**：
+  - **消除硬切斷層（100% 全螢幕底圖）**：打破舊版只佔右側造成邊緣斷層的缺陷，背景底圖鋪滿 100% 全螢幕（`ContentScale.Crop`），以單一整體畫布渲染。
+  - **雙向線性漸層遮罩系統（Dual Gradient Scrim）**：
+    - **左側水平漸層**：從最左側實黑（`#070B10`）到 35% 處 85% 深黑，至 70% 處自然羽化溶解到背景圖中，高對比托住標題與資訊文字。
+    - **底部垂直漸層**：從透明到底部實黑，柔和承托下方選中之卡片輪播列，避免卡片與背景雜色衝突。
+    - **頂部狀態列漸層**：保護時間、電量、Wi-Fi 與頂部導航分頁列。
+    - **景深暗角（Vignette）**：大半徑四周暗角壓暗邊緣，烘托劇院主機電影感。
+  - **精選無字 Key Art / Hero Wallpaper（`GameBannerManager`）**：
+    - 區分「Hero Art」與「Banner」：為 Steam Link（深邃星空科技藍）、Moonlight（極光夜空）、UyenController（幾何碳纖維科技網格）、8-Bit（賽博霓虹街機）準備高畫質 16:9 無字 Key Art，徹底解決橫幅 Banner 自帶大文字導致的重複打架雜亂感。
+  - **去除開發者除錯感，提升主機排版精緻度（`GameRepository` & `HeroBanner`）**：
+    - **隱藏 Package Name**：首頁主畫面絕不顯示生硬的 package name，改由 `resolveConsoleSubtitle` 自動解析為「Valve Corporation • 遠端主機串流」、「Google LLC • 影音串流平台」等發行商與平台描述；除錯資訊收斂於選單屬性彈窗。
+    - **精緻膠囊標籤**：類別與標籤全面升級為圓角膠囊（`RoundedCornerShape(16.dp)`），11sp 字級搭配半透明毛玻璃底色（`Color.White.copy(alpha = 0.15f)`）與 0.5dp 微光細緻邊框。
+    - **呼吸感排版**：標題設為 `FontWeight.ExtraBold` 搭配立體柔和文字陰影，增大垂直留白。
+  - **方形圖示景深氛圍氛光（Atmospheric Glow）**：
+    - 針對 YouTube、Chrome 等方形應用圖示，杜絕全螢幕馬賽克拉伸，底層以大半徑品牌色漫射氛光充盈全屏，右側呈現 136dp 3D 浮動圓角立體徽章。
 
 - **Google Play 新裝 App 實時熱同步系統（`PackageChangeMonitor` & `GameRepository`）**：
   - **雙通道事件監控引擎**：註冊 Android 官方專為桌面啟動器設計的 `LauncherApps.Callback`（`onPackageAdded`, `onPackageRemoved`, `onPackageChanged` 等），輔以動態 `BroadcastReceiver`（`ACTION_PACKAGE_ADDED/REMOVED/REPLACED`）雙保險。當由 Google Play 或第三方商店安裝完成時，由 300ms/800ms 二段式防抖機制自動觸發重新掃描，遊戲庫即時自動更新。
@@ -61,5 +66,5 @@
 
 - 工作分支：`main`。
 - 建置狀況：`assembleDebug` 35 項 Task 全部成功執行。
-- 單元測試：`UyenLauncherUnitTest.kt` 與 `GameBannerUnitTest.kt` 擴充至 **35 項單元測試，通過率 100%（35/35 PASSED）**。
+- 單元測試：`UyenLauncherUnitTest.kt` 與 `GameBannerUnitTest.kt` 擴充至 **36 項單元測試，通過率 100%（36/36 PASSED）**。
 - 實機驗證：相容 Redmi 13C (Android 14) 橫向掌機環境。

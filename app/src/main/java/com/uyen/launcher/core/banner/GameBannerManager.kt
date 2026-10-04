@@ -16,6 +16,7 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.regex.Pattern
+import com.uyen.launcher.R
 
 /**
  * 海報來源類型
@@ -69,23 +70,27 @@ class GameBannerManager(private val context: Context) {
             return@withContext ResolvedBanner(customFile.absolutePath, BannerSourceType.CUSTOM_USER)
         }
 
-        // 第二級：官方精選海報
+        // 第二級：官方精選無字高畫質 Key Art (優先使用內建或指定 16:9 Hero Wallpaper)
         if (!game.bannerUrl.isNullOrBlank()) {
             return@withContext ResolvedBanner(game.bannerUrl, BannerSourceType.CURATED)
+        }
+        val curatedRes = getCuratedHeroResId(game.id, game.packageName)
+        if (curatedRes != null) {
+            return@withContext ResolvedBanner(curatedRes, BannerSourceType.CURATED)
         }
 
         val pkg = game.packageName
         if (!pkg.isNullOrBlank()) {
-            // 第三級：Android TV Leanback 原生橫幅
-            val tvBannerPath = getOrExtractTvBanner(pkg)
-            if (tvBannerPath != null) {
-                return@withContext ResolvedBanner(tvBannerPath, BannerSourceType.TV_BANNER)
-            }
-
-            // 第四級：Google Play 官方宣傳海報刮削
+            // 第三級：Google Play 官方宣傳海報刮削 (1920x1080 規格)
             val playStoreUrl = getOrScrapePlayStoreGraphic(pkg)
             if (!playStoreUrl.isNullOrBlank() && playStoreUrl != CACHE_NOT_FOUND) {
                 return@withContext ResolvedBanner(playStoreUrl, BannerSourceType.PLAY_STORE)
+            }
+
+            // 第四級：Android TV Leanback 原生橫幅
+            val tvBannerPath = getOrExtractTvBanner(pkg)
+            if (tvBannerPath != null) {
+                return@withContext ResolvedBanner(tvBannerPath, BannerSourceType.TV_BANNER)
             }
         }
 
@@ -309,5 +314,19 @@ class GameBannerManager(private val context: Context) {
         private val PLAY_LH_PATTERN: Pattern = Pattern.compile(
             """https://play-lh\.googleusercontent\.com/[a-zA-Z0-9_\-]+(=[a-zA-Z0-9_\-]+)?"""
         )
+
+        /**
+         * 針對串流客戶端與內建遊戲，取得內建的高畫質無字 Hero Wallpaper
+         */
+        fun getCuratedHeroResId(gameId: String, packageName: String?): Int? {
+            val pkgLower = packageName?.lowercase().orEmpty()
+            return when {
+                gameId == "controller_mode" -> R.drawable.hero_uyen_controller
+                gameId == "retro_8bit" -> R.drawable.hero_retro_cyber
+                pkgLower.contains("steam") || pkgLower == "com.valvesoftware.steamlink" -> R.drawable.hero_steam_cosmic
+                pkgLower.contains("limelight") || pkgLower.contains("moonlight") -> R.drawable.hero_moonlight_aurora
+                else -> null
+            }
+        }
     }
 }

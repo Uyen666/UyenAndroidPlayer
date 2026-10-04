@@ -86,13 +86,13 @@ class GameRepository(private val context: Context) {
                     val activities = launcherApps.getActivityList(null, profile)
                     for (activity in activities) {
                         val packageName = activity.applicationInfo.packageName
-                        if (packageName == context.packageName) continue
+                        val cat = categorize(packageName)
                         discoveredItems.add(
                             GameItem(
                                 id = "app:$packageName",
                                 title = activity.label?.toString() ?: packageName,
-                                subtitle = packageName,
-                                category = categorize(packageName),
+                                subtitle = resolveConsoleSubtitle(packageName, cat),
+                                category = cat,
                                 packageName = packageName
                             )
                         )
@@ -108,12 +108,13 @@ class GameRepository(private val context: Context) {
             activities.forEach { resolveInfo ->
                 val activity = resolveInfo.activityInfo ?: return@forEach
                 if (activity.packageName == context.packageName) return@forEach
+                val cat = categorize(activity.packageName)
                 discoveredItems.add(
                     GameItem(
                         id = "app:${activity.packageName}",
                         title = resolveInfo.loadLabel(pm).toString(),
-                        subtitle = activity.packageName,
-                        category = categorize(activity.packageName),
+                        subtitle = resolveConsoleSubtitle(activity.packageName, cat),
+                        category = cat,
                         packageName = activity.packageName
                     )
                 )
@@ -230,6 +231,44 @@ class GameRepository(private val context: Context) {
             listOf("retro", "emu", "nostalgia", "arcade").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.RETRO
             listOf("moonlight", "limelight", "steam", "parsec", "geforce", "sunshine").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.STREAMING
             else -> GameCategory.TOOL
+        }
+
+        fun resolveConsoleSubtitle(packageName: String?, category: GameCategory): String {
+            if (packageName == null) {
+                return when (category) {
+                    GameCategory.GALGAME -> "視覺小說 / AVG 遊戲"
+                    GameCategory.RETRO -> "復古街機 / 家用主機"
+                    GameCategory.CUSTOM -> "自製掌機專屬應用"
+                    GameCategory.STREAMING -> "主機串流客戶端"
+                    GameCategory.TOOL -> "已安裝應用程式"
+                    GameCategory.ALL -> "掌機遊戲庫"
+                }
+            }
+
+            val pkgLower = packageName.lowercase()
+            return when {
+                pkgLower.startsWith("com.valvesoftware") || pkgLower.contains("steam") -> "Valve Corporation • 遠端主機串流"
+                pkgLower.contains("limelight") || pkgLower.contains("moonlight") -> "Moonlight • 超低延遲遠端串流"
+                pkgLower.contains("parsec") -> "Parsec Cloud, Inc. • 雲端遊戲串流"
+                pkgLower.contains("geforce") -> "NVIDIA • GeForce NOW 雲端遊戲"
+                pkgLower.contains("sunshine") -> "LizardByte • 主機串流服務端"
+                pkgLower.contains("youtube") -> "Google LLC • 影音串流平台"
+                pkgLower.contains("chrome") -> "Google LLC • 網路瀏覽器"
+                pkgLower.contains("photos") -> "Google LLC • 相簿與媒體庫"
+                pkgLower.contains("retroarch") -> "Libretro • 萬能模擬器前端"
+                pkgLower.contains("tyranor") -> "麵包工坊 • 視覺小說通用引擎"
+                pkgLower.contains("kirikiri") -> "Kirikiri 2 • 吉里吉里冒險遊戲核心"
+                pkgLower.contains("joiplay") -> "JoiPlay • RPG / 視覺小說解碼器"
+                pkgLower.contains("ppsspp") -> "Henrik Rydgård • PSP 掌機模擬器"
+                pkgLower.contains("dolphin") -> "Dolphin • 家用主機模擬核心"
+                pkgLower.contains("aethersx2") || pkgLower.contains("nethersx2") -> "PS2 掌機模擬核心"
+                category == GameCategory.STREAMING -> "遠端主機串流客戶端"
+                category == GameCategory.GALGAME -> "視覺小說 / AVG 遊戲"
+                category == GameCategory.RETRO -> "復古街機遊戲"
+                category == GameCategory.CUSTOM -> "掌機自製應用"
+                category == GameCategory.TOOL -> "已安裝應用程式"
+                else -> "掌機遊戲庫"
+            }
         }
         val defaultGames = listOf(
             GameItem(

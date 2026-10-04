@@ -14,11 +14,12 @@ UyenLauncher 是專為 Android 打造的掌機風格遊戲啟動器（以 Kotlin
   - 雙通道事件監控引擎（`LauncherApps.Callback` 與 `BroadcastReceiver`）結合二段式防抖機制，Google Play 或外部安裝完成時無感自動更新。
   - 繞過 Android 11+ Package Visibility 限制，支援多用戶與 MIUI/HyperOS 應用雙開。
   - 生命週期返回桌面（`onLauncherResumed`）與進入收藏庫（`setLibraryOpen`）自動背景補償掃描，收藏庫頂部提供全局一鍵刷新。
-- **旗艦掌機視覺展台與雙層環境光（Hero Stage & Ambient Lighting）**：
-  - **右側獨立 Hero 展台**：徹底解決 1024x500 等低解析海報被全螢幕暴力放大拉伸（1600x720）造成的馬賽克與文字重疊問題。將海報視覺精確約束在右側黃金區域（寬度 64%、高度 72%），海報以接近 1:1 原生像素密度高畫質渲染。
-  - **四向羽化柔和漸層**：左側羽化漸淡融入深色底座，使左側標題與副標題清晰呈現不被干擾；底部柔和隱入卡片；頂部防護狀態列；邊緣細緻暗角。
-  - **智慧長寬比動態適配**：橫向海報（寬高比 > 1.22）右置 4 向羽化寬幅海報展台；正方形圖示（0.82 ~ 1.22，如 YouTube 等應用）自動轉化為精緻 150dp 3D 浮動徽章，終結全螢幕紅色色塊；直式海報（< 0.82，如 Galgame）呈現 Steam Deck 風格 2:3 獨立直式浮動膠囊海報。
-  - **動態品牌雙層環境光**：依據聚焦項目之品牌色彩（Moonlight 青、YouTube 赤紅、Steam 蔚藍、Galgame 粉紫、8-Bit 暖琥珀、Uyen 綠洲青）動態渲染全螢幕放射狀氛圍光與展台聚焦光。
+- **PS5 旗艦全螢幕海報與雙向漸層遮罩系統（PS5 Scrim Backdrop & Key Art）**：
+  - **消除硬切斷層**：海報底圖鋪滿 100% 全螢幕（`ContentScale.Crop`），徹底杜絕舊版局部舞台的垂直生硬切邊。
+  - **雙向線性漸層遮罩**：左側水平漸層（深黑 `#070B10` 至 70% 羽化消融）自然承托標題與膠囊標籤；底部垂直漸層平滑過渡至選中之卡片輪播列；頂部防護狀態列與導航；四周疊加劇院級景深暗角（Vignette）。
+  - **精選無字 Key Art**：Steam Link（深邃星空科技藍）、Moonlight（極光夜空）、UyenController（碳纖維科技網格）、8-Bit（賽博霓虹街機）全面升級高解析無字 Key Art，終結橫幅自帶文字重複打架問題。
+  - **去除開發者除錯感**：隱藏裸露的 Package Name，自動解析為「Valve Corporation • 遠端主機串流」等主機發行商副標題；標籤改為精緻毛玻璃圓角膠囊（`RoundedCornerShape(16.dp)`，0.5dp 微光細緻邊框）。
+  - **方形圖示景深氛圍光**：YouTube 等工具類圖示不進行暴力拉伸，底層以超大半徑品牌色漫射氛光充盈全屏，右側呈現 136dp 3D 浮動圓角立體徽章。
 - **掌機首頁與遊戲庫**：
   - 首頁 5 張自訂輪播卡片（支援自由增刪與長按自訂相簿海報）。
   - SteamOS 1:1 移植全螢幕收藏庫（L1/R1 切換分頁、分類動態數量徽章、A啟動/B返回）。
@@ -56,7 +57,7 @@ app/src/main/java/com/uyen/launcher/
 # 建置 Debug APK
 .\gradlew.bat assembleDebug
 
-# 執行全套單元測試 (35 項測試 100% 通過)
+# 執行全套單元測試 (36 項測試 100% 通過)
 .\gradlew.bat testDebugUnitTest
 ```
 

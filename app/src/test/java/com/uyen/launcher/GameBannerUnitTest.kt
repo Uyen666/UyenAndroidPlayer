@@ -141,4 +141,53 @@ class GameBannerUnitTest {
         assertEquals(androidx.compose.ui.graphics.Color(0xFF9333EA), com.uyen.launcher.core.util.AppIconUtil.getAmbientColor(galgame))
         assertEquals(androidx.compose.ui.graphics.Color(0xFF1E3A8A), com.uyen.launcher.core.util.AppIconUtil.getAmbientColor(nullGame))
     }
+
+    @Test
+    fun testResolveConsoleSubtitle() {
+        // Steam Link
+        val steamSub = com.uyen.launcher.data.repository.GameRepository.resolveConsoleSubtitle(
+            "com.valvesoftware.steamlink",
+            com.uyen.launcher.data.model.GameCategory.STREAMING
+        )
+        assertEquals("Valve Corporation • 遠端主機串流", steamSub)
+
+        // Moonlight
+        val moonSub = com.uyen.launcher.data.repository.GameRepository.resolveConsoleSubtitle(
+            "com.limelight",
+            com.uyen.launcher.data.model.GameCategory.STREAMING
+        )
+        assertEquals("Moonlight • 超低延遲遠端串流", moonSub)
+
+        // YouTube
+        val ytSub = com.uyen.launcher.data.repository.GameRepository.resolveConsoleSubtitle(
+            "com.google.android.youtube",
+            com.uyen.launcher.data.model.GameCategory.TOOL
+        )
+        assertEquals("Google LLC • 影音串流平台", ytSub)
+
+        // Null package
+        val galSub = com.uyen.launcher.data.repository.GameRepository.resolveConsoleSubtitle(
+            null,
+            com.uyen.launcher.data.model.GameCategory.GALGAME
+        )
+        assertEquals("視覺小說 / AVG 遊戲", galSub)
+    }
+
+    @Test
+    fun testCuratedHeroMappingRules() {
+        val steamRes = GameBannerManager.getCuratedHeroResId("app:com.valvesoftware.steamlink", "com.valvesoftware.steamlink")
+        assertEquals(com.uyen.launcher.R.drawable.hero_steam_cosmic, steamRes)
+
+        val moonRes = GameBannerManager.getCuratedHeroResId("app:com.limelight", "com.limelight")
+        assertEquals(com.uyen.launcher.R.drawable.hero_moonlight_aurora, moonRes)
+
+        val ctrlRes = GameBannerManager.getCuratedHeroResId("controller_mode", null)
+        assertEquals(com.uyen.launcher.R.drawable.hero_uyen_controller, ctrlRes)
+
+        val retroRes = GameBannerManager.getCuratedHeroResId("retro_8bit", null)
+        assertEquals(com.uyen.launcher.R.drawable.hero_retro_cyber, retroRes)
+
+        val otherRes = GameBannerManager.getCuratedHeroResId("app:com.unknown.app", "com.unknown.app")
+        assertNull(otherRes)
+    }
 }
