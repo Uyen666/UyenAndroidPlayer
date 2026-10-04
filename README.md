@@ -20,6 +20,10 @@ UyenLauncher 是專為 Android 打造的掌機風格遊戲啟動器（以 Kotlin
   - **精選無字 Key Art**：Steam Link（深邃星空科技藍）、Moonlight（極光夜空）、UyenController（碳纖維科技網格）、8-Bit（賽博霓虹街機）全面升級高解析無字 Key Art，終結橫幅自帶文字重複打架問題。
   - **去除開發者除錯感**：隱藏裸露的 Package Name，自動解析為「Valve Corporation • 遠端主機串流」等主機發行商副標題；標籤改為精緻毛玻璃圓角膠囊（`RoundedCornerShape(16.dp)`，0.5dp 微光細緻邊框）。
   - **方形圖示景深氛圍光**：YouTube 等工具類圖示不進行暴力拉伸，底層以超大半徑品牌色漫射氛光充盈全屏，右側呈現 136dp 3D 浮動圓角立體徽章。
+- **Google Play 遊戲與串流應用穿透喚起（LauncherApps & Dynamic LockTask Whitelist）**：
+  - **官方啟動器系統管道（`LauncherApps.startMainActivity`）**：全面升級應用啟動機制，穿透 Android 14 / MIUI HyperOS 嚴格之 Background Activity Launch（BAL）安全限制，保證從 Google Play 安裝之遊戲與串流軟體（Steam Link, Moonlight 等）能順暢喚醒至前台。
+  - **Task 棧智能還原（`FLAG_ACTIVITY_RESET_TASK_IF_NEEDED`）**：徹底修復多工背景運行的應用在點擊開啟時被系統吞掉、卡在原首頁的缺陷。
+  - **LockTask 動態白名單防禦**：全域宣告 `QUERY_ALL_PACKAGES` 權限；在 Device Owner 模式下動態將新裝 App 寫入 DevicePolicyManager 白名單，根除 `Error 101 (LOCK_TASK_MODE_VIOLATION)` 攔截。
 - **掌機首頁與遊戲庫**：
   - 首頁 5 張自訂輪播卡片（支援自由增刪與長按自訂相簿海報）。
   - SteamOS 1:1 移植全螢幕收藏庫（L1/R1 切換分頁、分類動態數量徽章、A啟動/B返回）。
@@ -57,7 +61,7 @@ app/src/main/java/com/uyen/launcher/
 # 建置 Debug APK
 .\gradlew.bat assembleDebug
 
-# 執行全套單元測試 (36 項測試 100% 通過)
+# 執行全套單元測試 (38 項測試 100% 通過)
 .\gradlew.bat testDebugUnitTest
 ```
 

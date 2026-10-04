@@ -1,11 +1,13 @@
 package com.uyen.launcher.data.repository
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.UserManager
+import android.util.Log
 import com.uyen.launcher.core.scanner.LocalRomScanner
 import com.uyen.launcher.core.system.PackageChangeMonitor
 import com.uyen.launcher.data.model.GameCategory
@@ -86,6 +88,7 @@ class GameRepository(private val context: Context) {
                     val activities = launcherApps.getActivityList(null, profile)
                     for (activity in activities) {
                         val packageName = activity.applicationInfo.packageName
+                        com.uyen.launcher.core.kiosk.ConsoleLockManager.ensurePackageWhitelisted(context, packageName)
                         val cat = categorize(packageName)
                         discoveredItems.add(
                             GameItem(
@@ -109,6 +112,7 @@ class GameRepository(private val context: Context) {
                 val activity = resolveInfo.activityInfo ?: return@forEach
                 if (activity.packageName == context.packageName) return@forEach
                 val cat = categorize(activity.packageName)
+                com.uyen.launcher.core.kiosk.ConsoleLockManager.ensurePackageWhitelisted(context, activity.packageName)
                 discoveredItems.add(
                     GameItem(
                         id = "app:${activity.packageName}",
@@ -135,20 +139,81 @@ class GameRepository(private val context: Context) {
 
     /**
      * 商業級掌機遊戲喚起分發引擎
-     * 1. 原生 Android 應用直接透過 PackageManager 啟動
+     * 1. 原生 Android 應用優先透過 LauncherApps 官方系統管道喚起 (穿透 Android 14 後台限制，支援 Task 還原)
      * 2. Galgame 本機檔案智能調用 Tyranor / Kirikiroid2 / JoiPlay，未安裝引擎則回傳 false 觸發引導彈窗
      * 3. 復古 ROM 透過系統關聯相容模擬器開啟
      */
     fun launchGame(item: GameItem): Boolean {
         val pm = context.packageManager
 
-        // 1. Android 原生已安裝 App
+        // 1. Android 原生已安裝 App (Google Play 遊戲、雲端串流、模擬器客戶端)
         val packageName = item.packageName
         if (packageName != null) {
-            val intent = pm.getLaunchIntentForPackage(packageName) ?: return false
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-            return true
+            // 動態確保目標 App 納入 LockTask 白名單，避免系統拒絕喚起 (Error 101)
+            com.uyen.launcher.core.kiosk.ConsoleLockManager.ensurePackageWhitelisted(context, packageName)
+
+            // 優先管道：LauncherApps.startMainActivity (官方啟動器穿透 Android 14 後台啟動限制與多用戶 Task 還原)
+            val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
+            val userManager = context.getSystemService(Context.USER_SERVICE) as? UserManager
+            if (launcherApps != null && userManager != null) {
+                try {
+                    for (profile in userManager.userProfiles) {
+                        val activities = launcherApps.getActivityList(packageName, profile)
+                        if (!activities.isNullOrEmpty()) {
+                            val activityInfo = activities[0]
+                            launcherApps.startMainActivity(
+                                activityInfo.componentName,
+                                profile,
+                                null,
+                                null
+                            )
+                            return true
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("GameRepository", "LauncherApps.startMainActivity failed: ${e.message}")
+                }
+            }
+
+            // 次要管道：PackageManager 預設 Launch Intent (必須具備 RESET_TASK_IF_NEEDED 標記)
+            val launchIntent = pm.getLaunchIntentForPackage(packageName)
+                ?: pm.getLeanbackLaunchIntentForPackage(packageName)
+
+            if (launchIntent != null) {
+                launchIntent.addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                )
+                try {
+                    context.startActivity(launchIntent)
+                    return true
+                } catch (e: Exception) {
+                    Log.w("GameRepository", "startActivity with launchIntent failed: ${e.message}")
+                }
+            }
+
+            // 備用管道：顯式 Intent 尋找 MAIN + LAUNCHER Activity 指定組件啟動
+            try {
+                val mainIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                    setPackage(packageName)
+                }
+                val resolveInfo = pm.queryIntentActivities(mainIntent, 0).firstOrNull()
+                if (resolveInfo?.activityInfo != null) {
+                    val comp = ComponentName(resolveInfo.activityInfo.packageName, resolveInfo.activityInfo.name)
+                    val explicitIntent = Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_LAUNCHER)
+                        component = comp
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                    }
+                    context.startActivity(explicitIntent)
+                    return true
+                }
+            } catch (e: Exception) {
+                Log.e("GameRepository", "Explicit launch failed for $packageName: ${e.message}")
+            }
+
+            return false
         }
 
         val uriString = item.launchIntentUri ?: return false
@@ -170,6 +235,9 @@ class GameRepository(private val context: Context) {
             }
 
             if (installedEngine != null) {
+                // 確保 Galgame 模擬引擎在掌機模式白名單中
+                com.uyen.launcher.core.kiosk.ConsoleLockManager.ensurePackageWhitelisted(context, installedEngine)
+
                 // 嘗試以 ACTION_VIEW 傳遞 URI 權限直接進入遊戲
                 val viewIntent = Intent(Intent.ACTION_VIEW).apply {
                     setDataAndType(uri, item.mimeType ?: "application/octet-stream")
@@ -184,7 +252,7 @@ class GameRepository(private val context: Context) {
                 // 若該引擎不支援 URI 隱式調用，則啟動該引擎主介面
                 val launchIntent = pm.getLaunchIntentForPackage(installedEngine)
                 if (launchIntent != null) {
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
                     context.startActivity(launchIntent)
                     return true
                 }
@@ -200,7 +268,11 @@ class GameRepository(private val context: Context) {
                 setDataAndType(uri, item.mimeType ?: "application/octet-stream")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            if (intent.resolveActivity(pm) != null) {
+            val resolveInfo = intent.resolveActivity(pm)
+            if (resolveInfo != null) {
+                resolveInfo.packageName?.let { pkg ->
+                    com.uyen.launcher.core.kiosk.ConsoleLockManager.ensurePackageWhitelisted(context, pkg)
+                }
                 context.startActivity(intent)
                 true
             } else {

@@ -488,7 +488,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             activePlaySessionId = null
             activePlaySessionStartedAt = 0L
         }
-        // 即時刷新已安裝應用，確保從 Google Play 或其他程式返回桌面時瞬間顯示新 App
+        // 即時刷新已安裝應用與掌機 LockTask 白名單，確保從 Google Play 或其他程式返回桌面時瞬間同步
+        com.uyen.launcher.core.kiosk.ConsoleLockManager.refreshLockTaskPackages(getApplication())
         viewModelScope.launch {
             gameRepository.scanInstalledApps()
         }

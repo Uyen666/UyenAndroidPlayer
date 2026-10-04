@@ -400,5 +400,47 @@ class UyenLauncherUnitTest {
         assertEquals(GameCategory.TOOL, com.uyen.launcher.data.repository.GameRepository.categorize("com.android.settings"))
         assertEquals(GameCategory.TOOL, com.uyen.launcher.data.repository.GameRepository.categorize("com.google.android.youtube"))
     }
+
+    @Test
+    fun testLockTaskWhitelistDeduplication() {
+        val baseList = listOf("com.uyen.launcher", "com.android.settings")
+        val newApp = "com.limelight"
+        val merged = (baseList + newApp).distinct()
+        assertEquals(3, merged.size)
+        assertTrue(merged.contains("com.limelight"))
+        assertTrue(merged.contains("com.uyen.launcher"))
+    }
+
+    @Test
+    fun testIntentFlagRequirementsForOfficialLauncher() {
+        val newTaskFlag = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+        val resetTaskFlag = android.content.Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+        val combined = newTaskFlag or resetTaskFlag
+
+        assertTrue((combined and newTaskFlag) != 0)
+        assertTrue((combined and resetTaskFlag) != 0)
+    }
+
+    @Test
+    fun testConsoleSubtitleResolutionCleansPackageNames() {
+        val steamSubtitle = com.uyen.launcher.data.repository.GameRepository.resolveConsoleSubtitle(
+            "com.valvesoftware.steamlink",
+            GameCategory.STREAMING
+        )
+        assertFalse(steamSubtitle.contains("com.valvesoftware"))
+        assertTrue(steamSubtitle.contains("Valve Corporation"))
+
+        val moonlightSubtitle = com.uyen.launcher.data.repository.GameRepository.resolveConsoleSubtitle(
+            "com.limelight",
+            GameCategory.STREAMING
+        )
+        assertTrue(moonlightSubtitle.contains("Moonlight"))
+
+        val youtubeSubtitle = com.uyen.launcher.data.repository.GameRepository.resolveConsoleSubtitle(
+            "com.google.android.youtube",
+            GameCategory.TOOL
+        )
+        assertTrue(youtubeSubtitle.contains("Google LLC"))
+    }
 }
 

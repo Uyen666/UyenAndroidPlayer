@@ -42,9 +42,11 @@ class PackageChangeMonitor(
         val triggerChange = {
             debounceJob?.cancel()
             debounceJob = scope.launch {
+                com.uyen.launcher.core.kiosk.ConsoleLockManager.refreshLockTaskPackages(context)
                 delay(300) // 防抖動：防止 Google Play 分包安裝或多重廣播同時觸發頻繁掃描
                 onPackageChanged()
                 delay(800) // 二次保證，確保 Google Play 分包/標籤完全寫入 PackageManager
+                com.uyen.launcher.core.kiosk.ConsoleLockManager.refreshLockTaskPackages(context)
                 onPackageChanged()
             }
         }
@@ -54,6 +56,7 @@ class PackageChangeMonitor(
             launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
             launcherCallback = object : LauncherApps.Callback() {
                 override fun onPackageAdded(packageName: String, user: UserHandle) {
+                    com.uyen.launcher.core.kiosk.ConsoleLockManager.ensurePackageWhitelisted(context, packageName)
                     triggerChange()
                 }
 
@@ -62,10 +65,12 @@ class PackageChangeMonitor(
                 }
 
                 override fun onPackageChanged(packageName: String, user: UserHandle) {
+                    com.uyen.launcher.core.kiosk.ConsoleLockManager.ensurePackageWhitelisted(context, packageName)
                     triggerChange()
                 }
 
                 override fun onPackagesAvailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) {
+                    packageNames.forEach { com.uyen.launcher.core.kiosk.ConsoleLockManager.ensurePackageWhitelisted(context, it) }
                     triggerChange()
                 }
 
@@ -80,6 +85,10 @@ class PackageChangeMonitor(
         try {
             packageReceiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
+                    val pkgName = intent?.data?.schemeSpecificPart
+                    if (pkgName != null && context != null) {
+                        com.uyen.launcher.core.kiosk.ConsoleLockManager.ensurePackageWhitelisted(context, pkgName)
+                    }
                     when (intent?.action) {
                         Intent.ACTION_PACKAGE_ADDED,
                         Intent.ACTION_PACKAGE_REMOVED,

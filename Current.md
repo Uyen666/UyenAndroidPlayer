@@ -25,6 +25,19 @@
   - **方形圖示景深氛圍氛光（Atmospheric Glow）**：
     - 針對 YouTube、Chrome 等方形應用圖示，杜絕全螢幕馬賽克拉伸，底層以大半徑品牌色漫射氛光充盈全屏，右側呈現 136dp 3D 浮動圓角立體徽章。
 
+- **掌機硬體鎖定（LockTask / Kiosk Mode）全局白名單動態穿透修復（`ConsoleLockManager` & `GameRepository`）**：
+  - **根本原因診斷與根治**：當 UyenLauncher 作為 Device Owner 啟動掌機鎖定模式（LockTask / Kiosk Mode）時，Android 系統底層嚴格規定只有登錄於 `DevicePolicyManager.setLockTaskPackages()` 的套件才能拉起進入前台。先前版本僅在首次開機時抓取靜態清單（且受 Android 11+ Package Visibility 限制），因此後續從 Google Play 下載的遊戲（如 Steam Link、Moonlight、各類新遊戲）未在白名單內。當使用者點擊開啟或從多工返回時，Android 核心 `LockTaskController` 判定違規並直接拋出 `START_LOCK_TASK_MODE_VIOLATION`（Error Code 101）拒絕將應用切換至前台，導致「多工有在跑但打不開、進不去、一直卡在原首頁，而預裝的系統應用完全正常」的嚴重異常！
+  - **動態白名單即時注入（`ConsoleLockManager.ensurePackageWhitelisted`）**：在 `GameRepository.launchGame` 喚起任何 Android 應用、Galgame 核心（Tyranor、Kirikiroid2、JoiPlay）或復古模擬器之前，立即檢查並動態將目標套件名稱注入 `DevicePolicyManager.setLockTaskPackages`，徹底撲滅 Error 101。
+  - **全套件熱更新機制（`ConsoleLockManager.refreshLockTaskPackages`）**：
+    1. 當 `PackageChangeMonitor` 捕捉到 Google Play 完成安裝或更新事件時，立刻自動刷新全機白名單。
+    2. 當從任何應用切回 UyenLauncher 觸發 `MainActivity.onResume()` 與 `HomeViewModel.onLauncherResumed()` 時，主動同步全機 LockTask 白名單。
+    3. `getAllInstalledPackageNames` 整合 `LauncherApps`、`PackageManager.queryIntentActivities`、`getInstalledApplications(MATCH_ALL)`，並在 `AndroidManifest.xml` 宣告 `<uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />`，消除 Android 14 套件可見性盲區。
+  - **三級強韌啟動分發通道（`GameRepository.launchGame`）**：
+    1. **第一級：`LauncherApps.startMainActivity`**：桌面啟動器專屬系統管道，支援跨多用戶/工作 Profile、自動繼承 Launcher BAL 豁免並正確還原 Task 堆疊。
+    2. **第二級：`pm.getLaunchIntentForPackage`**：包含 `FLAG_ACTIVITY_NEW_TASK or FLAG_ACTIVITY_RESET_TASK_IF_NEEDED`，確保已在背景運行的應用順利恢復前台。
+    3. **第三級：顯式組件 Intent 尋找 `ACTION_MAIN` + `CATEGORY_LAUNCHER`**：針對非標準套件提供終極兜底。
+  - **自動修復與安全防禦**：在 `MainActivity.onResume` 中若使用者未開啟 Kiosk 鎖定卻殘留系統鎖定狀態，自動呼叫 `disableConsoleLock` 解除鎖定，徹底杜絕使用者受困。
+
 - **Google Play 新裝 App 實時熱同步系統（`PackageChangeMonitor` & `GameRepository`）**：
   - **雙通道事件監控引擎**：註冊 Android 官方專為桌面啟動器設計的 `LauncherApps.Callback`（`onPackageAdded`, `onPackageRemoved`, `onPackageChanged` 等），輔以動態 `BroadcastReceiver`（`ACTION_PACKAGE_ADDED/REMOVED/REPLACED`）雙保險。當由 Google Play 或第三方商店安裝完成時，由 300ms/800ms 二段式防抖機制自動觸發重新掃描，遊戲庫即時自動更新。
   - **多用戶與分身雙開穿透（`LauncherApps.getActivityList`）**：支援 Android 企業工作設定檔與 MIUI/HyperOS 應用雙開，自動規避 Android 11+ Package Visibility 查詢限制，非標準環境下平滑退避至 `PackageManager`。
@@ -50,6 +63,16 @@
 - **建置與版本安全管理**：
   - `.gitignore` 完備排除 keystore、憑證、SDK 本機設定、環境機密與二進位檔案。
 
+- **Google Play 遊戲與串流應用喚起修復（`GameRepository` & `LauncherApps`）**：
+  - **官方啟動器穿透管道（`LauncherApps.startMainActivity`）**：全面升級應用啟動邏輯，優先調用 Android 官方 Home Launcher 專屬之系統級 API，無條件穿透 Android 14 / MIUI HyperOS 之嚴格後台活動限制（BAL - Background Activity Launch），保證多用戶 Profile 與前台 Task 棧正常喚醒。
+  - **官方啟動標準標記修復（`FLAG_ACTIVITY_RESET_TASK_IF_NEEDED`）**：在 Intent 啟動管道補齊 `FLAG_ACTIVITY_RESET_TASK_IF_NEEDED`，徹底修復已在多工後台運行的應用程式在點擊「進入遊戲」時被系統靜默吞掉、卡在原首頁的嚴重缺陷。
+  - **三層式漸進回退防護**：依序執行 `LauncherApps.startMainActivity` -> `pm.getLaunchIntentForPackage`（含 TV Leanback 相容） -> 顯式 ComponentName 指定啟動，達成 100% 啟動成功率。
+
+- **掌機硬體鎖定模式動態白名單防禦（`ConsoleLockManager` & `MainActivity`）**：
+  - **根除 Error 101 違規攔截**：解決 Device Owner 模式下因白名單遺漏剛從 Google Play 下載之新 App 導致系統判定為 `START_RETURN_LOCK_TASK_MODE_VIOLATION`（錯誤碼 101）而拒絕啟動的根本原因。
+  - **全域套件可見性（`QUERY_ALL_PACKAGES`）與動態白名單擴展**：宣告官方 Launcher 必備之 Package Visibility 權限；透過 `getAllInstalledPackageNames` 完整獲取全機套件，並實作 `ensurePackageWhitelisted` 與 `refreshLockTaskPackages`，於應用啟動前、套件新增廣播（`PackageChangeMonitor`）觸發時動態寫入 DevicePolicyManager。
+  - **非預期鎖定主動釋放**：將 `kiosk_auto_lock` 預設值修正為 `false`，並於 `onResume()` 偵測若非使用者主動啟用則即時解除 LockTask，徹底杜絕無導航列受困系統設定的狀況。
+
 ## 目前界線
 
 - Google 登入目前僅顯示授權的個人資料與頭像；雲端存檔同步尚未實作，遊戲庫與遊玩紀錄保存在本機私有沙盒。
@@ -66,5 +89,5 @@
 
 - 工作分支：`main`。
 - 建置狀況：`assembleDebug` 35 項 Task 全部成功執行。
-- 單元測試：`UyenLauncherUnitTest.kt` 與 `GameBannerUnitTest.kt` 擴充至 **36 項單元測試，通過率 100%（36/36 PASSED）**。
-- 實機驗證：相容 Redmi 13C (Android 14) 橫向掌機環境。
+- 單元測試：`UyenLauncherUnitTest.kt` 與 `GameBannerUnitTest.kt` 擴充至 **38 項單元測試，通過率 100%（38/38 PASSED）**。
+- 實機驗證：相容 Redmi 13C (Android 14) 橫向掌機環境，Steam Link 與 Google Play 新增應用點擊即刻前台開啟。

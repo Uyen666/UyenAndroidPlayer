@@ -15,6 +15,11 @@
     <!-- Google Account Reading & Discovery -->
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
 
+    <!-- Full Package Visibility for Home Launcher to discover and launch all apps -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
     <!-- Hardware Feedback -->
     <uses-permission android:name="android.permission.VIBRATE" />
 

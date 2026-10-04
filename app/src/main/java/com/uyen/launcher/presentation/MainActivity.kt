@@ -73,12 +73,17 @@ class MainActivity : ComponentActivity() {
         com.uyen.launcher.core.service.GlobalConsoleEdgeService.start(this)
         homeViewModel.refreshGoogleAccounts()
         homeViewModel.checkDeviceOwnerState()
+        ConsoleLockManager.refreshLockTaskPackages(this)
         val prefs = getSharedPreferences("uyen_launcher_ui_prefs", MODE_PRIVATE)
-        if (prefs.getBoolean("kiosk_auto_lock", true) &&
+        val isKioskAutoLock = prefs.getBoolean("kiosk_auto_lock", false)
+        if (isKioskAutoLock &&
             ConsoleLockManager.isDeviceOwner(this) &&
             !ConsoleLockManager.isLockTaskActive(this)
         ) {
             ConsoleLockManager.enableConsoleLock(this)
+        } else if (!isKioskAutoLock && ConsoleLockManager.isLockTaskActive(this)) {
+            // 自動解除非預期的 LockTask 鎖定，避免使用者卡在鎖定模式
+            ConsoleLockManager.disableConsoleLock(this)
         }
     }
 
