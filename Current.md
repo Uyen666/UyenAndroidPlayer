@@ -2,13 +2,18 @@
 
 - **套件版本**：`1.0.0`（`versionCode 100`，第一次正式發行版）
 - **GitHub**：https://github.com/Uyen666/UyenAndroidPlayer
-- **更新日期**：2026-10-03
+- **更新日期**：2026-10-04
 - **主要技術**：Kotlin、Jetpack Compose、Android SDK 35
 - **目標裝置**：Redmi 13C / Android 14，橫向使用
 - **Git 分支**：`main`；現有 GitHub remote 與忽略規則保留
 
 ## 目前已實作
 
+- **Google Play 新裝 App 實時熱同步系統（`PackageChangeMonitor` & `GameRepository`）**：
+  - **雙通道事件監控引擎**：註冊 Android 官方專為桌面啟動器設計的 `LauncherApps.Callback`（`onPackageAdded`, `onPackageRemoved`, `onPackageChanged` 等），輔以動態 `BroadcastReceiver`（`ACTION_PACKAGE_ADDED/REMOVED/REPLACED`）雙保險。當由 Google Play 或第三方商店安裝完成時，由 300ms/800ms 二段式防抖機制自動觸發重新掃描，遊戲庫即時自動更新。
+  - **多用戶與分身雙開穿透（`LauncherApps.getActivityList`）**：支援 Android 企業工作設定檔與 MIUI/HyperOS 應用雙開，自動規避 Android 11+ Package Visibility 查詢限制，非標準環境下平滑退避至 `PackageManager`。
+  - **生命週期返回無感熱補償**：在啟動器恢復前台 `onLauncherResumed()`（如從 Google Play 切回桌面）及開啟收藏庫 `setLibraryOpen(true)` 時自動排程非同步熱檢查，確保剛裝好的 App 永不丟失、直接出現在收藏庫中。
+  - **SteamOS 收藏庫全局一鍵重新整理（`SteamLibraryDialog`）**：於收藏庫頂部工具列提供全局 `[ 🔄 重新整理 ]` 按鈕，使用者無需退出回首頁亦能隨時手動刷新。
 - **商業級 Galgame 掌機整合子系統**：
   - **智慧子資料夾識別架構（`LocalRomScanner`）**：以遊戲子資料夾為單一實體單位，自動辨識吉里吉里 2/Z（Kirikiri, `.xp3`, `startup.tjs`）、Ren'Py（`.rpa`, `options.rpy`）、TyranoBuilder（`index.html`）、RPG Maker / Wolf RPG（`data.wolf`, `Game.exe`）等主流 AVG 格式，徹底杜絕單款遊戲被拆散成數十個 `patch.xp3` 碎片的痛點。
   - **高畫質封面海報自動探測**：優先識別遊戲資料夾內之 `cover.jpg/png`、`folder.jpg`、`poster.webp`、`thumb.png` 等海報圖，無縫繫結為直式 2:3 海報與首頁 Hero Banner 巨幅視覺。
@@ -44,6 +49,6 @@
 ## 版本與驗證
 
 - 工作分支：`main`。
-- 建置狀況：`assembleDebug` 42 項 Task 全部成功執行。
-- 單元測試：`UyenLauncherUnitTest.kt` 擴充至 **32 項單元測試，通過率 100%（32/32 PASSED）**。
+- 建置狀況：`assembleDebug` 35 項 Task 全部成功執行。
+- 單元測試：`UyenLauncherUnitTest.kt` 擴充至 **34 項單元測試，通過率 100%（34/34 PASSED）**。
 - 實機驗證：相容 Redmi 13C (Android 14) 橫向掌機環境。

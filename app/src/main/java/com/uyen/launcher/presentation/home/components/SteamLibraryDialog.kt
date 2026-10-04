@@ -117,6 +117,7 @@ fun SteamLibraryDialog(
     onLaunchGame: (GameItem) -> Unit,
     onPickGalgameFolder: (() -> Unit)? = null,
     onRescanGalgames: (() -> Unit)? = null,
+    onRefreshLibrary: (() -> Unit)? = null,
     onClose: () -> Unit
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -357,6 +358,22 @@ fun SteamLibraryDialog(
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    } else if (onRefreshLibrary != null) {
+                        IconButton(
+                            onClick = { onRefreshLibrary() },
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.08f))
+                                .size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "重新整理收藏庫",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                     }

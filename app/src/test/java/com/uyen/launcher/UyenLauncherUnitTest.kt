@@ -377,5 +377,28 @@ class UyenLauncherUnitTest {
         assertFalse(com.uyen.launcher.core.hardware.SystemControlManager.shouldClearDebugApp("   ", ourPackage))
         assertFalse(com.uyen.launcher.core.hardware.SystemControlManager.shouldClearDebugApp("com.other.app", ourPackage))
     }
+
+    @Test
+    fun testPackageChangeMonitorActionMatching() {
+        assertTrue(com.uyen.launcher.core.system.PackageChangeMonitor.isPackageAction("android.intent.action.PACKAGE_ADDED"))
+        assertTrue(com.uyen.launcher.core.system.PackageChangeMonitor.isPackageAction("android.intent.action.PACKAGE_REMOVED"))
+        assertTrue(com.uyen.launcher.core.system.PackageChangeMonitor.isPackageAction("android.intent.action.PACKAGE_REPLACED"))
+        assertFalse(com.uyen.launcher.core.system.PackageChangeMonitor.isPackageAction("android.intent.action.BOOT_COMPLETED"))
+        assertFalse(com.uyen.launcher.core.system.PackageChangeMonitor.isPackageAction(null))
+        assertFalse(com.uyen.launcher.core.system.PackageChangeMonitor.isPackageAction(""))
+    }
+
+    @Test
+    fun testGameRepositoryCategorizationRules() {
+        assertEquals(GameCategory.GALGAME, com.uyen.launcher.data.repository.GameRepository.categorize("com.tyranor"))
+        assertEquals(GameCategory.GALGAME, com.uyen.launcher.data.repository.GameRepository.categorize("cn.yuri.kirikiri"))
+        assertEquals(GameCategory.GALGAME, com.uyen.launcher.data.repository.GameRepository.categorize("cyou.joiplay.renpy"))
+        assertEquals(GameCategory.RETRO, com.uyen.launcher.data.repository.GameRepository.categorize("com.retroarch.aarch64"))
+        assertEquals(GameCategory.RETRO, com.uyen.launcher.data.repository.GameRepository.categorize("emu.arcade.cps3"))
+        assertEquals(GameCategory.STREAMING, com.uyen.launcher.data.repository.GameRepository.categorize("com.limelight"))
+        assertEquals(GameCategory.STREAMING, com.uyen.launcher.data.repository.GameRepository.categorize("com.valvesoftware.steamlink"))
+        assertEquals(GameCategory.TOOL, com.uyen.launcher.data.repository.GameRepository.categorize("com.android.settings"))
+        assertEquals(GameCategory.TOOL, com.uyen.launcher.data.repository.GameRepository.categorize("com.google.android.youtube"))
+    }
 }
 

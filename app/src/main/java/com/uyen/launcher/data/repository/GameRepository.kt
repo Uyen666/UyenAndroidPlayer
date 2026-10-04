@@ -2,15 +2,20 @@ package com.uyen.launcher.data.repository
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.UserManager
 import com.uyen.launcher.core.scanner.LocalRomScanner
+import com.uyen.launcher.core.system.PackageChangeMonitor
 import com.uyen.launcher.data.model.GameCategory
 import com.uyen.launcher.data.model.GameItem
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -26,6 +31,28 @@ class GameRepository(private val context: Context) {
     private var localGames: List<GameItem> = emptyList()
     private val favoriteIds = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         .getStringSet(KEY_FAVORITES, emptySet()).orEmpty().toMutableSet()
+
+    private var packageMonitor: PackageChangeMonitor? = null
+
+    /**
+     * 啟動系統級實時安裝/卸載監控，當 Google Play 或系統完成安裝時自動觸發無感更新
+     */
+    fun startMonitoring(scope: CoroutineScope) {
+        if (packageMonitor != null) return
+        packageMonitor = PackageChangeMonitor(context) {
+            scope.launch {
+                scanInstalledApps()
+            }
+        }.also { it.register(scope) }
+    }
+
+    /**
+     * 釋放資源並取消廣播與 Launcher 回調監聽
+     */
+    fun release() {
+        packageMonitor?.unregister()
+        packageMonitor = null
+    }
 
     fun toggleFavorite(gameId: String) {
         if (!favoriteIds.add(gameId)) favoriteIds.remove(gameId)
@@ -46,23 +73,57 @@ class GameRepository(private val context: Context) {
 
     suspend fun scanInstalledApps() = withContext(Dispatchers.IO) {
         val pm = context.packageManager
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        installedApps = pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
-            .asSequence()
-            .mapNotNull { resolveInfo ->
-                val activity = resolveInfo.activityInfo ?: return@mapNotNull null
-                if (activity.packageName == context.packageName) return@mapNotNull null
-                GameItem(
-                    id = "app:${activity.packageName}",
-                    title = resolveInfo.loadLabel(pm).toString(),
-                    subtitle = activity.packageName,
-                    category = categorize(activity.packageName),
-                    packageName = activity.packageName
+        val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
+        val userManager = context.getSystemService(Context.USER_SERVICE) as? UserManager
+
+        val discoveredItems = mutableListOf<GameItem>()
+
+        // 1. 優先使用 LauncherApps 官方啟動器 API (支援多用戶分身/應用雙開，且無 Android 11+ package visibility 限制)
+        if (launcherApps != null && userManager != null) {
+            try {
+                val profiles = userManager.userProfiles
+                for (profile in profiles) {
+                    val activities = launcherApps.getActivityList(null, profile)
+                    for (activity in activities) {
+                        val packageName = activity.applicationInfo.packageName
+                        if (packageName == context.packageName) continue
+                        discoveredItems.add(
+                            GameItem(
+                                id = "app:$packageName",
+                                title = activity.label?.toString() ?: packageName,
+                                subtitle = packageName,
+                                category = categorize(packageName),
+                                packageName = packageName
+                            )
+                        )
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 2. 若 LauncherApps 未取得資料或在非標準環境，回退至 PackageManager 查詢
+        if (discoveredItems.isEmpty()) {
+            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            val activities = pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
+            activities.forEach { resolveInfo ->
+                val activity = resolveInfo.activityInfo ?: return@forEach
+                if (activity.packageName == context.packageName) return@forEach
+                discoveredItems.add(
+                    GameItem(
+                        id = "app:${activity.packageName}",
+                        title = resolveInfo.loadLabel(pm).toString(),
+                        subtitle = activity.packageName,
+                        category = categorize(activity.packageName),
+                        packageName = activity.packageName
+                    )
                 )
             }
+        }
+
+        installedApps = discoveredItems
             .distinctBy(GameItem::id)
             .sortedBy(GameItem::title)
-            .toList()
+
         publishGames()
     }
 
@@ -160,16 +221,16 @@ class GameRepository(private val context: Context) {
             }
     }
 
-    private fun categorize(packageName: String): GameCategory = when {
-        listOf("tyranor", "kirikiri", "renpy", "galgame").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.GALGAME
-        listOf("retro", "emu", "nostalgia", "arcade").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.RETRO
-        listOf("moonlight", "steam", "parsec").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.STREAMING
-        else -> GameCategory.TOOL
-    }
-
-    private companion object {
+    companion object {
         const val KEY_FAVORITES = "favorite_game_ids"
         const val PREFS_NAME = "uyen_library_prefs"
+
+        fun categorize(packageName: String): GameCategory = when {
+            listOf("tyranor", "kirikiri", "renpy", "galgame").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.GALGAME
+            listOf("retro", "emu", "nostalgia", "arcade").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.RETRO
+            listOf("moonlight", "limelight", "steam", "parsec", "geforce", "sunshine").any { packageName.contains(it, ignoreCase = true) } -> GameCategory.STREAMING
+            else -> GameCategory.TOOL
+        }
         val defaultGames = listOf(
             GameItem(
                 id = "controller_mode",

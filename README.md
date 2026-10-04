@@ -10,6 +10,10 @@ UyenLauncher 是專為 Android 打造的掌機風格遊戲啟動器（以 Kotlin
   - **SteamOS 收藏庫專區**：在收藏庫 GALGAME 分頁支援專屬空狀態、一鍵 SAF 資料夾授權選取、頂部重新整理/變更目錄，以及卡片右上角獨立「📌 釘選至首頁」切換。
   - **兩段式開玩體驗**：首頁卡片第 1 次點擊滾動並聚焦（更新大海報），第 2 次點擊直接啟動遊戲。
   - **核心引擎分發與引導**：自動探測 Tyranor、Kirikiroid2、JoiPlay 等相容核心；未安裝引擎時彈出專屬導航彈窗，提供格式說明與應用商店搜尋跳轉。
+- **Google Play 新裝 App 實時熱同步（PackageChangeMonitor）**：
+  - 雙通道事件監控引擎（`LauncherApps.Callback` 與 `BroadcastReceiver`）結合二段式防抖機制，Google Play 或外部安裝完成時無感自動更新。
+  - 繞過 Android 11+ Package Visibility 限制，支援多用戶與 MIUI/HyperOS 應用雙開。
+  - 生命週期返回桌面（`onLauncherResumed`）與進入收藏庫（`setLibraryOpen`）自動背景補償掃描，收藏庫頂部提供全局一鍵刷新。
 - **掌機首頁與遊戲庫**：
   - PS5 大氣無按鈕 Hero Banner，底層 90Hz 流暢動態呼吸微縮放與高斯模糊背景。
   - 首頁 5 張自訂輪播卡片（支援自由增刪與長按自訂相簿海報）。
@@ -30,7 +34,7 @@ UyenLauncher 是專為 Android 打造的掌機風格遊戲啟動器（以 Kotlin
 
 ```text
 app/src/main/java/com/uyen/launcher/
-├── core/                  # 系統整合、SAF 智慧掃描器、海報解析、真實 RAM 管理與全局服務
+├── core/                  # 系統整合、SAF 智慧掃描器、海報解析、實時安裝監控、真實 RAM 管理與全局服務
 ├── data/
 │   ├── model/             # 遊戲實體、帳號與畫面狀態模型
 │   └── repository/        # 已安裝 App、本機遊戲聚合與偏好儲存
@@ -48,7 +52,7 @@ app/src/main/java/com/uyen/launcher/
 # 建置 Debug APK
 .\gradlew.bat assembleDebug
 
-# 執行全套單元測試 (31 項測試 100% 通過)
+# 執行全套單元測試 (34 項測試 100% 通過)
 .\gradlew.bat testDebugUnitTest
 ```
 

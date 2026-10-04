@@ -396,6 +396,7 @@ fun HomeScreen(
             onLaunchGame = { viewModel.launchGame(it) },
             onPickGalgameFolder = { gamesFolderPicker.launch(null) },
             onRescanGalgames = { viewModel.rescanGamesFolder() },
+            onRefreshLibrary = { viewModel.refreshGames() },
             onClose = { viewModel.setLibraryOpen(false) }
         )
 

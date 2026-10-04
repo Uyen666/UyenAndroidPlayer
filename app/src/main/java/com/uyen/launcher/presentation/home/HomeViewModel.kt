@@ -227,6 +227,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         performanceMonitor.startMonitoring(viewModelScope)
         GlobalConsoleEdgeService.start(application)
         refreshGoogleAccounts()
+        gameRepository.startMonitoring(viewModelScope)
         viewModelScope.launch {
             gameRepository.scanInstalledApps()
             gameRepository.scanLocalRomFiles(savedGamesFolderUri())
@@ -479,12 +480,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onLauncherResumed() {
-        val id = prefs.getString(KEY_ACTIVE_PLAY_ID, null) ?: return
-        val startedAt = prefs.getLong(KEY_ACTIVE_PLAY_STARTED_AT, 0L)
-        if (startedAt > 0L) gameRepository.recordPlaySession(id, System.currentTimeMillis() - startedAt)
-        prefs.edit().remove(KEY_ACTIVE_PLAY_ID).remove(KEY_ACTIVE_PLAY_STARTED_AT).apply()
-        activePlaySessionId = null
-        activePlaySessionStartedAt = 0L
+        val id = prefs.getString(KEY_ACTIVE_PLAY_ID, null)
+        if (id != null) {
+            val startedAt = prefs.getLong(KEY_ACTIVE_PLAY_STARTED_AT, 0L)
+            if (startedAt > 0L) gameRepository.recordPlaySession(id, System.currentTimeMillis() - startedAt)
+            prefs.edit().remove(KEY_ACTIVE_PLAY_ID).remove(KEY_ACTIVE_PLAY_STARTED_AT).apply()
+            activePlaySessionId = null
+            activePlaySessionStartedAt = 0L
+        }
+        // 即時刷新已安裝應用，確保從 Google Play 或其他程式返回桌面時瞬間顯示新 App
+        viewModelScope.launch {
+            gameRepository.scanInstalledApps()
+        }
     }
 
     private fun startPlaySession(gameId: String) {
@@ -736,7 +743,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (_isLibraryOpen.value != open) {
             _isLibraryOpen.value = open
             viewModelScope.launch {
-                if (open) soundManager.playConfirmSound() else soundManager.playCancelSound()
+                if (open) {
+                    soundManager.playConfirmSound()
+                    gameRepository.scanInstalledApps()
+                } else {
+                    soundManager.playCancelSound()
+                }
             }
         }
     }
@@ -799,5 +811,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         performanceMonitor.stopMonitoring()
         soundManager.release()
+        gameRepository.release()
     }
 }
