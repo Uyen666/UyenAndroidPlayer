@@ -57,6 +57,7 @@ class UyenConsoleAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         Log.i(TAG, "UyenConsoleAccessibilityService connected successfully")
+        GlobalConsoleEdgeService.start(this)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {

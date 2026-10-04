@@ -60,12 +60,14 @@ class MainActivity : ComponentActivity() {
 
         // 於 View 結構初始化後安全隱藏系統列
         SystemBarUtil.hideSystemBars(this)
+        com.uyen.launcher.core.hardware.SystemControlManager.checkAndClearDebugApp(this)
         com.uyen.launcher.core.service.GlobalConsoleEdgeService.start(this)
         handleIntent(intent)
     }
 
     override fun onResume() {
         super.onResume()
+        com.uyen.launcher.core.hardware.SystemControlManager.checkAndClearDebugApp(this)
         homeViewModel.onLauncherResumed()
         SystemBarUtil.hideSystemBars(this)
         com.uyen.launcher.core.service.GlobalConsoleEdgeService.start(this)

@@ -193,6 +193,7 @@ class GlobalConsoleEdgeService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        SystemControlManager.checkAndClearDebugApp(applicationContext)
         vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         startAsForeground()
@@ -305,9 +306,9 @@ class GlobalConsoleEdgeService : Service() {
     // ==========================================
     @SuppressLint("ClickableViewAccessibility")
     private fun setupOverlayView() {
-        val dp7 = dpToPx(7)
-        val dp36 = dpToPx(36)
-        val dp56 = dpToPx(56)
+        val dp8 = dpToPx(8)
+        val dp40 = dpToPx(40)
+        val dp60 = dpToPx(60)
 
         rootView = FrameLayout(this).apply {
             clipChildren = false
@@ -320,9 +321,9 @@ class GlobalConsoleEdgeService : Service() {
 
             val handleTab = View(context).apply {
                 val bg = GradientDrawable().apply {
-                    setColor(Color.parseColor("#E60F172A"))
-                    setStroke(dpToPx(1), Color.parseColor("#8000E5FF"))
-                    val radius = dp7.toFloat() * 0.5f
+                    setColor(Color.parseColor("#EE0F172A"))
+                    setStroke(dpToPx(2), Color.parseColor("#00E5FF"))
+                    val radius = dp8.toFloat() * 0.5f
                     cornerRadii = floatArrayOf(
                         radius, radius,
                         0f, 0f,
@@ -333,7 +334,7 @@ class GlobalConsoleEdgeService : Service() {
                 background = bg
             }
 
-            val tabParams = FrameLayout.LayoutParams(dp7, dp56).apply {
+            val tabParams = FrameLayout.LayoutParams(dp8, dp60).apply {
                 gravity = Gravity.CENTER_VERTICAL or Gravity.END
             }
             addView(handleTab, tabParams)
@@ -429,7 +430,7 @@ class GlobalConsoleEdgeService : Service() {
             gravity = Gravity.CENTER_VERTICAL or Gravity.END
         }
 
-        rootView?.addView(collapsedHandle, FrameLayout.LayoutParams(dp36, dp56).apply {
+        rootView?.addView(collapsedHandle, FrameLayout.LayoutParams(dp40, dp60).apply {
             gravity = Gravity.CENTER_VERTICAL or Gravity.END
         })
         rootView?.addView(expandedCapsule, rootParams)
@@ -450,8 +451,8 @@ class GlobalConsoleEdgeService : Service() {
             gravity = if (isPortrait) (Gravity.CENTER_VERTICAL or Gravity.END) else (Gravity.BOTTOM or Gravity.END)
             x = 0
             y = if (isPortrait) dpToPx(80) else dpToPx(55)
-            width = dp36
-            height = dp56
+            width = dp40
+            height = dp60
         }
         overlayLayoutParams = layoutParams
 
@@ -493,8 +494,8 @@ class GlobalConsoleEdgeService : Service() {
         expandedCapsule?.visibility = View.GONE
         collapsedHandle?.visibility = View.VISIBLE
         overlayLayoutParams?.let { params ->
-            params.width = dpToPx(36)
-            params.height = dpToPx(56)
+            params.width = dpToPx(40)
+            params.height = dpToPx(60)
             try {
                 windowManager?.updateViewLayout(rootView, params)
             } catch (_: Exception) {}

@@ -121,4 +121,28 @@ class SystemControlManager(private val context: Context) {
             } catch (_: Exception) {}
         }
     }
+
+    companion object {
+        fun shouldClearDebugApp(currentDebugApp: String?, ourPackageName: String): Boolean {
+            return !currentDebugApp.isNullOrBlank() && currentDebugApp.trim() == ourPackageName.trim()
+        }
+
+        fun checkAndClearDebugApp(context: Context) {
+            try {
+                val cr = context.contentResolver
+                val current = Settings.Global.getString(cr, "debug_app")
+                if (shouldClearDebugApp(current, context.packageName)) {
+                    android.util.Log.w("SystemControlManager", "Detected DEBUG_APP was set to ${context.packageName}. Clearing to prevent OS force-stop.")
+                    try {
+                        Settings.Global.putString(cr, "debug_app", "")
+                    } catch (_: Exception) {
+                        try {
+                            Runtime.getRuntime().exec(arrayOf("am", "clear-debug-app"))
+                        } catch (_: Exception) {}
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
 }
+

@@ -366,4 +366,16 @@ class UyenLauncherUnitTest {
         assertEquals("content://cover_jpg", game.bannerUrl)
         assertTrue(game.tags.contains("吉里吉里"))
     }
+
+    @Test
+    fun testShouldClearDebugAppLogic() {
+        val ourPackage = "com.uyen.launcher"
+        assertTrue(com.uyen.launcher.core.hardware.SystemControlManager.shouldClearDebugApp("com.uyen.launcher", ourPackage))
+        assertTrue(com.uyen.launcher.core.hardware.SystemControlManager.shouldClearDebugApp(" com.uyen.launcher ", ourPackage))
+        assertFalse(com.uyen.launcher.core.hardware.SystemControlManager.shouldClearDebugApp(null, ourPackage))
+        assertFalse(com.uyen.launcher.core.hardware.SystemControlManager.shouldClearDebugApp("", ourPackage))
+        assertFalse(com.uyen.launcher.core.hardware.SystemControlManager.shouldClearDebugApp("   ", ourPackage))
+        assertFalse(com.uyen.launcher.core.hardware.SystemControlManager.shouldClearDebugApp("com.other.app", ourPackage))
+    }
 }
+

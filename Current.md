@@ -23,6 +23,9 @@
   - 實時呈現影格率（FPS）、電池溫度、全機可用 RAM 與電量狀態，觸控完全穿透至底層遊戲。
 - **Google 帳號管理與頭像同步**：
   - 支援原生帳號選取與沙盒私有頭像儲存，兼具離線訪客模式。
+- **全局邊緣導航條與開發者選項防禦（`GlobalConsoleEdgeService` & `SystemControlManager`）**：
+  - **自動清理偵錯應用保護機制**：自動檢測並清除系統 `DEBUG_APP` 全局設定，徹底解決 Android / MIUI 在進入「開發者選項」時因偵錯機制強制殺死 UyenLauncher（`stop due to set debug app`）導致全局懸浮膠囊消失、使用者受困於系統設定的底層缺陷。
+  - **前台懸浮服務防殺韌性**：加入 `stopWithTask=false` 與高對比度 40dp 觸控手柄邊框，並由最高優先權之無障礙服務（`UyenConsoleAccessibilityService`）雙向看守，確保跨應用返回/主頁/多工按鈕永不遺失。
 - **建置與版本安全管理**：
   - `.gitignore` 完備排除 keystore、憑證、SDK 本機設定、環境機密與二進位檔案。
 
@@ -42,5 +45,5 @@
 
 - 工作分支：`main`。
 - 建置狀況：`assembleDebug` 42 項 Task 全部成功執行。
-- 單元測試：`UyenLauncherUnitTest.kt` 擴充至 **31 項單元測試，通過率 100%（31/31 PASSED）**。
+- 單元測試：`UyenLauncherUnitTest.kt` 擴充至 **32 項單元測試，通過率 100%（32/32 PASSED）**。
 - 實機驗證：相容 Redmi 13C (Android 14) 橫向掌機環境。
